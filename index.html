@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-title" content="Musik">
 <meta name="theme-color" content="#e6e8f6">
+<link rel="apple-touch-icon" href="icon.png">
+<script>
+  // Mode PWA (layar penuh) hanya aktif kalau dibuka dengan ?app=1
+  if (/[?&]app=1/.test(location.search)) {
+    var pairs = [["apple-mobile-web-app-capable", "yes"], ["apple-mobile-web-app-status-bar-style", "default"]];
+    for (var i = 0; i < pairs.length; i++) {
+      var m = document.createElement("meta");
+      m.name = pairs[i][0]; m.content = pairs[i][1];
+      document.head.appendChild(m);
+    }
+  }
+</script>
 <title>Musik</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
@@ -207,6 +219,20 @@
            opacity: 0; transform: translate3d(0,12px,0); pointer-events: none; transition: opacity .3s, transform .3s; }
   #toast.on { opacity: 1; transform: none; }
 
+  #a2hs { position: absolute; left: 14px; right: 14px; top: 12px; z-index: 60; display: none; align-items: center;
+          background: rgba(255,255,255,.96); border-radius: 22px; padding: 8px 8px 8px 16px;
+          box-shadow: 0 10px 28px rgba(100,105,170,.3); font-size: 13px; line-height: 1.3; color: #111;
+          animation: drop .6s 1.2s cubic-bezier(.2,.8,.2,1) both; }
+  #a2hs.on { display: flex; }
+  #a2hsTxt { flex: 1; font-weight: 600; }
+  #a2hsBtn { border: 0; background: #111; color: #fff; border-radius: 16px; height: 32px; padding: 0 14px;
+             font-size: 13px; font-weight: 700; margin-left: 8px; }
+  #a2hsX { border: 0; background: none; color: #8d8fa0; font-size: 22px; width: 32px; height: 32px; line-height: 1; }
+  #arrow { position: fixed; left: 50%; bottom: 4px; margin-left: -16px; width: 32px; height: 32px; z-index: 99;
+           display: none; color: #ff375f; animation: bounce 1s ease-in-out infinite; }
+  #arrow.on { display: block; }
+  @keyframes drop { from { opacity: 0; transform: translate3d(0,-30px,0); } to { opacity: 1; transform: none; } }
+  @keyframes bounce { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-9px,0); } }
   @keyframes up { from { opacity: 0; transform: translate3d(0,22px,0); } to { opacity: 1; transform: none; } }
   @keyframes slideL { from { opacity: 0; transform: translate3d(-50px,0,0) rotate(-50deg); } to { opacity: 1; transform: none; } }
   @keyframes slideIn { from { opacity: 0; transform: translate3d(70px,0,0); } to { opacity: 1; transform: none; } }
@@ -299,10 +325,17 @@
     </div>
   </div>
 
+  <div id="a2hs">
+    <div id="a2hsTxt"></div>
+    <button id="a2hsBtn">Pasang</button>
+    <button id="a2hsX" aria-label="Tutup">&times;</button>
+  </div>
+
   <div id="toast"></div>
 </div>
 </div>
 
+<div id="arrow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l-8-9h5V4h6v7h5z"/></svg></div>
 <audio id="audio" preload="metadata"></audio>
 
 <script>
@@ -575,7 +608,7 @@
     landing.classList.toggle("hide", name !== "landing");
     explore.classList.toggle("show", name !== "landing");
     tabbar.classList.toggle("show", name !== "landing");
-    closeMenu(); closeSheet();
+    closeMenu(); closeSheet(); updateA2hs();
     for (var i = 0; i < tabs.length; i++) {
       tabs[i].classList.toggle("on", tabs[i].getAttribute("data-go") === name);
     }
@@ -612,6 +645,31 @@
     mRepeat.textContent = "Ulangi: " + (repeat ? "nyala" : "mati");
     $("mSaveAll").style.display = hasCache ? "block" : "none";
   }
+
+  /* ---------- ajakan pasang ke layar utama ---------- */
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  var standalone = window.navigator.standalone === true;
+  var appMode = /[?&]app=1/.test(location.search);
+  var a2hsOff = false;
+  try { a2hsOff = localStorage.getItem("musik-a2hs") === "1"; } catch (e) {}
+  var a2hsEl = $("a2hs"), arrowEl = $("arrow");
+  function updateA2hs() {
+    var show = isIOS && !standalone && !a2hsOff && screen === "landing";
+    a2hsEl.classList.toggle("on", show);
+    arrowEl.classList.toggle("on", show && appMode);
+    $("a2hsBtn").style.display = appMode ? "none" : "block";
+    $("a2hsTxt").innerHTML = appMode
+      ? "Ketuk ikon <b>Bagikan</b> di bawah, lalu pilih <b>Tambahkan ke Layar Utama</b>"
+      : "Pasang sebagai aplikasi di layar utama";
+  }
+  $("a2hsBtn").addEventListener("click", function () {
+    location.href = location.pathname + "?app=1";
+  });
+  $("a2hsX").addEventListener("click", function () {
+    a2hsOff = true;
+    try { localStorage.setItem("musik-a2hs", "1"); } catch (e) {}
+    updateA2hs();
+  });
 
   /* ---------- UI ---------- */
   function updateUI() {
@@ -844,6 +902,7 @@
 
   /* ---------- muat daftar lagu ---------- */
   updateUI();
+  updateA2hs();
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "songs.json?t=" + Date.now(), true);
   xhr.onreadystatechange = function () {
