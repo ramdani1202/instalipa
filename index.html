@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-title" content="Musik">
+<meta name="theme-color" content="#e6e8f6">
+<link rel="apple-touch-icon" href="icon.png">
+<script>
+  // ?app=1 -> layar penuh (PWA, audio berhenti di latar belakang). Tanpa itu -> Safari (audio tetap jalan).
+  (function () {
+    var full = /[?&]app=1/.test(location.search);
+    var pairs = [["apple-mobile-web-app-capable", full ? "yes" : "no"]];
+    if (full) pairs.push(["apple-mobile-web-app-status-bar-style", "default"]);
+    for (var i = 0; i < pairs.length; i++) {
+      var m = document.createElement("meta");
+      m.name = pairs[i][0]; m.content = pairs[i][1];
+      document.head.appendChild(m);
+    }
+  })();
+</script>
+<title>Musik</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #e6e8f6; }
+  body { font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+         color: #111; -webkit-user-select: none; user-select: none; -webkit-text-size-adjust: 100%; }
+  button { font-family: inherit; cursor: pointer; outline: none; }
+  svg { width: 100%; height: 100%; display: block; }
+
+  .bg { position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+        background: linear-gradient(160deg, #e3e8f8 0%, #ebe6f8 55%, #e2e6f6 100%); }
+  .app { position: fixed; left: 0; top: 0; right: 0; bottom: 0; padding: 12px; }
+  .card { position: relative; width: 100%; height: 100%; border-radius: 34px; overflow: hidden;
+          background: linear-gradient(180deg, #f8faff 0%, #eef1fb 100%);
+          box-shadow: 0 24px 60px rgba(110,110,180,.25), inset 0 1px 0 rgba(255,255,255,.9);
+          -webkit-mask-image: -webkit-radial-gradient(white, black); }
+  .card:before { content: ""; position: absolute; left: -45%; top: 28%; width: 130%; height: 52%;
+          background: radial-gradient(closest-side, rgba(255,224,182,.5), rgba(255,224,182,0));
+          pointer-events: none; }
+
+  .screen { position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+            transition: transform .7s cubic-bezier(.4,0,.2,1), opacity .6s ease; }
+
+  /* ---------- LANDING ---------- */
+  #landing.hide { transform: translate3d(0,-7%,0); opacity: 0; pointer-events: none; }
+  #landing.hide * { animation-play-state: paused !important; }
+
+  .discs { position: absolute; left: 0; right: 0; top: 24px; height: 140px; }
+  .disc { position: absolute; top: 0; width: 132px; height: 132px; border-radius: 50%;
+          box-shadow: 0 10px 26px rgba(110,115,170,.22), inset 0 0 0 1px rgba(255,255,255,.9); }
+  .disc.d1 { left: 28px; z-index: 1;
+          background: radial-gradient(circle, #fff 0, #fff 12%, rgba(255,255,255,0) 13%),
+                      repeating-radial-gradient(circle, rgba(228,232,243,.96) 0, rgba(244,246,251,.96) 3px, rgba(224,228,241,.96) 6px);
+          animation: slideL .9s .05s cubic-bezier(.2,.8,.2,1) both, floatY 6.5s 1s ease-in-out infinite; }
+  .disc.d2 { left: 112px; z-index: 2;
+          background: radial-gradient(circle, #fff 0, #fff 12%, rgba(255,255,255,0) 13%),
+                      repeating-radial-gradient(circle, rgba(232,236,246,.97) 0, rgba(246,247,252,.97) 3px, rgba(226,230,243,.97) 6px);
+          animation: slideL .9s .2s cubic-bezier(.2,.8,.2,1) both, floatY2 7s 1.1s ease-in-out infinite; }
+  .disc.d3 { left: 196px; z-index: 3; overflow: hidden;
+          background: radial-gradient(circle, #fff 0, #fff 7%, #c8cde3 8%, #c8cde3 10%, rgba(255,255,255,0) 11%),
+                      repeating-radial-gradient(circle, #e9ecf5 0, #cfd5ec 2px, #f6eefb 4px, #d6e6f3 7px);
+          animation: slideL .9s .35s cubic-bezier(.2,.8,.2,1) both, floatY 7.5s 1.2s ease-in-out infinite; }
+  .disc.d3 .sheen { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%;
+          background: linear-gradient(115deg, rgba(255,255,255,0) 18%, rgba(255,255,255,.9) 40%,
+                      rgba(130,200,255,.35) 50%, rgba(255,160,220,.32) 60%, rgba(255,255,255,0) 82%);
+          animation: spin 9s linear infinite; }
+  .disc .lbl { position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px;
+          border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(200,205,225,.7); }
+  .disc .lbl:before, .disc .lbl:after { content: ""; position: absolute; left: 9px; right: 9px; height: 2px;
+          background: #c7cbdc; border-radius: 1px; }
+  .disc .lbl:before { top: 14px; } .disc .lbl:after { top: 19px; right: 14px; }
+  .disc.d3 .lbl { display: none; }
+
+  .cs-wrap { position: absolute; left: 47%; top: 43%; width: 235px; height: 142px;
+             animation: slideIn 1s .45s cubic-bezier(.2,.8,.2,1) both; }
+  .cassette { position: absolute; left: 0; top: 0; width: 100%; height: 100%; border-radius: 12px;
+              background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(226,231,246,.85));
+              border: 1px solid rgba(255,255,255,.95);
+              box-shadow: 0 16px 34px rgba(120,125,185,.28);
+              -webkit-mask-image: -webkit-linear-gradient(left, #000 42%, rgba(0,0,0,0) 100%);
+              animation: floatY 6s 1.4s ease-in-out infinite; }
+  .cs-top { position: absolute; left: 12px; right: 12px; top: 12px; height: 28px; border-radius: 4px;
+            background: rgba(255,255,255,.85); display: flex; align-items: center; padding: 0 9px;
+            font-size: 9px; color: #666; letter-spacing: .3px; }
+  .cs-top b { font-size: 17px; color: #111; margin-right: 8px; }
+  .cs-win { position: absolute; left: 44px; right: 44px; top: 52px; height: 56px; border-radius: 28px;
+            background: rgba(200,207,229,.6); box-shadow: inset 0 2px 6px rgba(120,125,170,.25); }
+  .reel { position: absolute; top: 6px; width: 44px; height: 44px; border-radius: 50%;
+          background: #e9ecf6; border: 7px dotted #fff; animation: spin 4s linear infinite; }
+  .reel.r1 { left: 8px; } .reel.r2 { right: 8px; }
+  .cs-90 { position: absolute; left: 16px; bottom: 12px; width: 24px; height: 24px; border-radius: 50%;
+           border: 1px solid #b9bdd0; font-size: 9px; text-align: center; line-height: 22px; color: #666; background: #fff; }
+
+  .hero { position: absolute; left: 26px; bottom: 98px; font-size: 42px; line-height: 1.06; font-weight: 800;
+          letter-spacing: -1.4px; }
+  .hero span { display: block; opacity: 0; animation: up .8s cubic-bezier(.2,.8,.2,1) forwards; }
+  .hero span:nth-child(1) { animation-delay: .35s; }
+  .hero span:nth-child(2) { animation-delay: .5s; color: #9c9eab; }
+  .hero span:nth-child(3) { animation-delay: .65s; }
+  #start { position: absolute; left: 16px; right: 16px; bottom: 22px; height: 52px; border: 0; border-radius: 26px;
+           font-size: 16px; font-weight: 700; color: #111;
+           background: linear-gradient(180deg, #fff, #eef0f9);
+           box-shadow: 0 8px 22px rgba(110,115,175,.28), inset 0 0 0 1px rgba(255,255,255,.95);
+           opacity: 0; animation: up .8s .85s cubic-bezier(.2,.8,.2,1) forwards; }
+  #start:active { -webkit-transform: scale(.98); transform: scale(.98); }
+
+  /* ---------- EXPLORE ---------- */
+  #explore { opacity: 0; transform: translate3d(0,5%,0); pointer-events: none; }
+  #explore.show { opacity: 1; transform: none; pointer-events: auto; }
+  .hdr { position: absolute; left: 0; right: 0; top: 0; height: 68px; display: flex; align-items: center;
+         justify-content: space-between; padding: 6px 18px 0 24px; z-index: 5; }
+  .hdr h2 { margin: 0; font-size: 23px; font-weight: 800; letter-spacing: -.5px; }
+  #net { display: none; margin-left: 10px; font-size: 11px; font-weight: 600; color: #8d8fa0;
+         background: #e6e8f4; border-radius: 9px; padding: 3px 8px; vertical-align: 3px; }
+  #net.on { display: inline-block; }
+  #menuBtn { width: 38px; height: 38px; padding: 7px; border: 0; background: none; color: #111; }
+
+  #list { position: absolute; left: 0; right: 0; top: 68px; bottom: 74px; overflow: hidden; }
+  #rows { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+  .fade-t, .fade-b { position: absolute; left: 0; right: 0; height: 46px; pointer-events: none; z-index: 3; }
+  .fade-t { top: 0; background: linear-gradient(to bottom, rgba(246,248,254,.95), rgba(246,248,254,0)); }
+  .fade-b { bottom: 0; background: linear-gradient(to top, rgba(242,244,252,.95), rgba(242,244,252,0)); }
+  #empty { position: absolute; left: 30px; right: 30px; top: 40%; text-align: center; color: #8d8fa0;
+           font-size: 14px; line-height: 1.5; display: none; }
+
+  .row { position: absolute; left: 0; top: 0; width: 100%; height: 72px; will-change: transform; }
+  .pill { position: absolute; left: 10px; right: 10px; top: 0; bottom: 0; border-radius: 36px; background: #fff;
+          box-shadow: 0 10px 28px rgba(110,115,175,.2), inset 0 0 0 1px rgba(255,255,255,.9); opacity: 0; }
+  .grp { position: absolute; left: 24px; top: 0; height: 72px; display: flex; align-items: center;
+         -webkit-transform-origin: 0 50%; transform-origin: 0 50%; will-change: transform, opacity; }
+  .cover { width: 56px; height: 56px; border-radius: 50%; flex: none; display: flex; align-items: center;
+           justify-content: center; font-size: 22px; font-weight: 800; color: #fff; background-color: #888;
+           box-shadow: 0 5px 14px rgba(70,70,120,.28), inset 0 0 0 2px rgba(255,255,255,.35); }
+  .txt { margin-left: 14px; max-width: 150px; -webkit-transform-origin: 0 50%; transform-origin: 0 50%; }
+  .t { font-size: 17px; font-weight: 700; letter-spacing: -.2px; white-space: nowrap; overflow: hidden;
+       text-overflow: ellipsis; }
+  .a { font-size: 13px; color: #8d8fa0; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .play { position: absolute; right: 22px; top: 19px; height: 34px; padding: 0 17px; border: 0; border-radius: 17px;
+          background: linear-gradient(180deg, #fff, #eef0f8); font-size: 13px; font-weight: 600; color: #111;
+          box-shadow: 0 3px 8px rgba(110,115,175,.28), inset 0 0 0 1px rgba(255,255,255,.95); opacity: 0; }
+
+  /* ---------- TAB BAR & MINI PLAYER ---------- */
+  #tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 74px; display: flex; z-index: 10;
+            background: linear-gradient(to top, #f3f5fd 62%, rgba(243,245,253,0));
+            opacity: 0; transform: translate3d(0,100%,0); pointer-events: none;
+            transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .5s; }
+  #tabbar.show { opacity: 1; transform: none; pointer-events: auto; }
+  .tab { flex: 1; border: 0; background: none; color: #a0a2b3; padding: 22px 0 0; transition: color .25s; }
+  .tab i { display: block; width: 26px; height: 26px; margin: 0 auto; transition: transform .25s; }
+  .tab.on { color: #111; } .tab.on i { transform: scale(1.12); }
+
+  #mini { position: absolute; left: 14px; right: 14px; bottom: 80px; height: 58px; border-radius: 29px; z-index: 12;
+          background: #fff; display: flex; align-items: center; padding: 0 8px;
+          box-shadow: 0 12px 30px rgba(100,105,170,.28);
+          transform: translate3d(0,180%,0); opacity: 0; pointer-events: none;
+          transition: transform .5s cubic-bezier(.2,.8,.2,1), opacity .35s; }
+  #mini.on { transform: none; opacity: 1; pointer-events: auto; }
+  #miniCover { width: 42px; height: 42px; border-radius: 50%; flex: none; font-size: 17px; }
+  #miniInfo { flex: 1; min-width: 0; margin-left: 12px; }
+  #miniTitle { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #miniSub { font-size: 12px; color: #8d8fa0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  #miniBtn { width: 42px; height: 42px; border: 0; border-radius: 50%; background: #111; color: #fff; padding: 11px;
+             flex: none; }
+
+  /* ---------- NOW PLAYING ---------- */
+  #sheet { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 30;
+           background: linear-gradient(180deg, #f8faff 0%, #eceff9 100%);
+           transform: translate3d(0,102%,0); transition: transform .55s cubic-bezier(.2,.8,.2,1); }
+  #sheet.open { transform: none; }
+  .sbar { height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 6px 14px 0; }
+  .sbar span { font-size: 13px; font-weight: 600; color: #8d8fa0; letter-spacing: .3px; }
+  #sheetClose { width: 40px; height: 40px; padding: 8px; border: 0; background: none; color: #111; }
+  .sbar i { width: 40px; display: block; }
+  .vinyl { position: relative; width: 236px; height: 236px; border-radius: 50%; margin: 6px auto 0; background: #121214;
+           box-shadow: 0 26px 50px rgba(80,85,150,.35); animation: spin 14s linear infinite; animation-play-state: paused; }
+  .vinyl.playing { animation-play-state: running; }
+  .vinyl .grv { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%;
+                background: repeating-radial-gradient(circle, rgba(255,255,255,.07) 0, rgba(255,255,255,.07) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px); }
+  .vinyl .shn { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%;
+                background: linear-gradient(120deg, rgba(255,255,255,.22) 0, rgba(255,255,255,0) 28%, rgba(255,255,255,0) 62%, rgba(255,255,255,.14) 100%); }
+  #vLab { position: absolute; left: 50%; top: 50%; width: 92px; height: 92px; margin: -46px 0 0 -46px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 800; color: #fff;
+          box-shadow: 0 0 0 4px rgba(255,255,255,.12); }
+  .vinyl .hole { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; margin: -5px 0 0 -5px;
+                 border-radius: 50%; background: #eef1fb; }
+  #sTitle { text-align: center; font-size: 24px; font-weight: 800; letter-spacing: -.5px; margin: 26px 28px 4px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #sArtist { text-align: center; font-size: 15px; color: #8d8fa0; min-height: 20px; }
+  .seekrow { display: flex; align-items: center; margin: 22px 26px 0; font-size: 12px; color: #8d8fa0; }
+  .seekrow span { width: 38px; text-align: center; }
+  #seek { -webkit-appearance: none; appearance: none; flex: 1; height: 5px; border-radius: 3px; background: #d8dbec;
+          outline: none; margin: 0; }
+  #seek::-webkit-slider-thumb { -webkit-appearance: none; width: 17px; height: 17px; border-radius: 50%; background: #111;
+          box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+  .ctrls { display: flex; align-items: center; justify-content: center; margin-top: 20px; }
+  .ctrls button { border: 0; background: none; color: #111; width: 50px; height: 50px; padding: 13px; margin: 0 5px; }
+  .ctrls button.sm { color: #a0a2b3; width: 44px; height: 44px; padding: 11px; }
+  .ctrls button.sm.on { color: #ff375f; }
+  .ctrls button#bPlay { width: 72px; height: 72px; padding: 20px; background: #111; color: #fff; border-radius: 50%;
+          box-shadow: 0 12px 26px rgba(20,20,40,.35); }
+  .ctrls button:active { opacity: .7; }
+  #bSave { display: flex; align-items: center; justify-content: center; margin: 22px auto 0; height: 40px; padding: 0 18px;
+           border: 0; border-radius: 20px; background: #fff; color: #111; font-size: 13px; font-weight: 600;
+           box-shadow: 0 6px 16px rgba(110,115,175,.25); }
+  #bSave i { width: 18px; height: 18px; margin-right: 7px; display: block; }
+  #bSave.saved { color: #1fa84f; } #bSave.busy { opacity: .55; }
+  #saveNote { text-align: center; font-size: 11px; color: #a0a2b3; margin-top: 8px; min-height: 14px; }
+
+  /* ---------- MENU & TOAST ---------- */
+  #menuWrap { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 40; display: none; }
+  #menuWrap.on { display: block; }
+  #menu { position: absolute; right: 14px; top: 60px; width: 220px; background: #fff; border-radius: 18px; padding: 6px 0;
+          box-shadow: 0 16px 40px rgba(90,95,160,.35); -webkit-transform-origin: 100% 0; transform-origin: 100% 0;
+          animation: pop .25s cubic-bezier(.2,.8,.2,1); }
+  #menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 13px 18px;
+                 font-size: 15px; font-weight: 500; color: #111; }
+  #menu button:active { background: #f0f2fa; }
+  #toast { position: absolute; left: 24px; right: 24px; bottom: 150px; z-index: 50; text-align: center; font-size: 13px;
+           color: #fff; background: rgba(20,20,30,.86); border-radius: 16px; padding: 10px 14px;
+           opacity: 0; transform: translate3d(0,12px,0); pointer-events: none; transition: opacity .3s, transform .3s; }
+  #toast.on { opacity: 1; transform: none; }
+
+  #a2hs { position: absolute; left: 14px; right: 14px; top: 12px; z-index: 60; display: none; align-items: center;
+          background: rgba(255,255,255,.96); border-radius: 22px; padding: 8px 8px 8px 16px;
+          box-shadow: 0 10px 28px rgba(100,105,170,.3); font-size: 13px; line-height: 1.3; color: #111;
+          animation: drop .6s 1.2s cubic-bezier(.2,.8,.2,1) both; }
+  #a2hs.on { display: flex; }
+  #a2hsTxt { flex: 1; font-weight: 600; }
+  #a2hsBtn { border: 0; background: #111; color: #fff; border-radius: 16px; height: 32px; padding: 0 14px;
+             font-size: 13px; font-weight: 700; margin-left: 8px; }
+  #a2hsX { border: 0; background: none; color: #8d8fa0; font-size: 22px; width: 32px; height: 32px; line-height: 1; }
+  #arrow { position: fixed; left: 50%; bottom: 4px; margin-left: -16px; width: 32px; height: 32px; z-index: 99;
+           display: none; color: #ff375f; animation: bounce 1s ease-in-out infinite; }
+  #arrow.on { display: block; }
+  @keyframes drop { from { opacity: 0; transform: translate3d(0,-30px,0); } to { opacity: 1; transform: none; } }
+  @keyframes bounce { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-9px,0); } }
+  @keyframes up { from { opacity: 0; transform: translate3d(0,22px,0); } to { opacity: 1; transform: none; } }
+  @keyframes slideL { from { opacity: 0; transform: translate3d(-50px,0,0) rotate(-50deg); } to { opacity: 1; transform: none; } }
+  @keyframes slideIn { from { opacity: 0; transform: translate3d(70px,0,0); } to { opacity: 1; transform: none; } }
+  @keyframes floatY { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-8px,0); } }
+  @keyframes floatY2 { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,7px,0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="app">
+<div class="card">
+
+  <!-- LANDING -->
+  <section class="screen" id="landing">
+    <div class="discs">
+      <div class="disc d1"><div class="lbl"></div></div>
+      <div class="disc d2"><div class="lbl"></div></div>
+      <div class="disc d3"><div class="sheen"></div></div>
+    </div>
+    <div class="cs-wrap">
+      <div class="cassette">
+        <div class="cs-top"><b>B</b>TYPE I / IEC I NORMAL</div>
+        <div class="cs-win"><div class="reel r1"></div><div class="reel r2"></div></div>
+        <div class="cs-90">90</div>
+      </div>
+    </div>
+    <div class="hero"><span>New</span><span>Age Of</span><span>Music</span></div>
+    <button id="start">Get Started</button>
+  </section>
+
+  <!-- EXPLORE -->
+  <section class="screen" id="explore">
+    <div class="hdr">
+      <div><h2 id="hdrTitle" style="display:inline-block">Explore</h2><span id="net">Offline</span></div>
+      <button id="menuBtn" data-icon="dots" aria-label="Menu"></button>
+    </div>
+    <div id="list">
+      <div id="rows"></div>
+      <div class="fade-t"></div><div class="fade-b"></div>
+      <div id="empty"></div>
+    </div>
+  </section>
+
+  <div id="tabbar">
+    <button class="tab" data-go="landing"><i data-icon="home"></i></button>
+    <button class="tab on" data-go="explore"><i data-icon="planet"></i></button>
+    <button class="tab" data-go="saved"><i data-icon="mark"></i></button>
+  </div>
+
+  <div id="mini">
+    <div class="cover" id="miniCover"></div>
+    <div id="miniInfo"><div id="miniTitle"></div><div id="miniSub"></div></div>
+    <button id="miniBtn" aria-label="Putar"></button>
+  </div>
+
+  <div id="sheet">
+    <div class="sbar">
+      <button id="sheetClose" data-icon="down" aria-label="Tutup"></button>
+      <span>SEDANG DIPUTAR</span>
+      <i></i>
+    </div>
+    <div class="vinyl" id="vinyl">
+      <div class="grv"></div><div id="vLab"></div><div class="hole"></div><div class="shn"></div>
+    </div>
+    <div id="sTitle">-</div>
+    <div id="sArtist">&nbsp;</div>
+    <div class="seekrow">
+      <span id="cur">0:00</span>
+      <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+      <span id="dur">0:00</span>
+    </div>
+    <div class="ctrls">
+      <button class="sm" id="bShuffle" data-icon="shuffle" aria-label="Acak"></button>
+      <button id="bPrev" data-icon="prev" aria-label="Sebelumnya"></button>
+      <button id="bPlay" aria-label="Putar"></button>
+      <button id="bNext" data-icon="next" aria-label="Berikutnya"></button>
+      <button class="sm" id="bRepeat" data-icon="repeat" aria-label="Ulangi"></button>
+    </div>
+    <button id="bSave"><i></i><b id="bSaveTxt" style="font-weight:600">Simpan offline</b></button>
+    <div id="saveNote"></div>
+  </div>
+
+  <div id="menuWrap">
+    <div id="menu">
+      <button id="mSaveAll">Simpan semua offline</button>
+      <button id="mShuffle">Acak: mati</button>
+      <button id="mRepeat">Ulangi: mati</button>
+    </div>
+  </div>
+
+  <div id="a2hs">
+    <div id="a2hsTxt"></div>
+    <button id="a2hsBtn">Pasang</button>
+    <button id="a2hsX" aria-label="Tutup">&times;</button>
+  </div>
+
+  <div id="toast"></div>
+</div>
+</div>
+
+<div id="arrow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l-8-9h5V4h6v7h5z"/></svg></div>
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+(function () {
+  "use strict";
+
+  var CACHE = "musik-v1";
+  var hasCache = !!(window.caches && "serviceWorker" in navigator);
+  var SP = 80; // jarak antar baris (px)
+
+  function $(id) { return document.getElementById(id); }
+
+  /* ---------- ikon ---------- */
+  function S(inner) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>'; }
+  function F(inner) { return '<svg viewBox="0 0 24 24" fill="currentColor">' + inner + '</svg>'; }
+  var ICON = {
+    play: F('<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>'),
+    pause: F('<rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/>'),
+    next: F('<path d="M5 6.2v11.6a.8.8 0 0 0 1.25.66l8.4-5.8a.8.8 0 0 0 0-1.32l-8.4-5.8A.8.8 0 0 0 5 6.2z"/><rect x="16.5" y="5" width="2.6" height="14" rx="1.1"/>'),
+    prev: F('<path d="M19 6.2v11.6a.8.8 0 0 1-1.25.66l-8.4-5.8a.8.8 0 0 1 0-1.32l8.4-5.8A.8.8 0 0 1 19 6.2z"/><rect x="4.9" y="5" width="2.6" height="14" rx="1.1"/>'),
+    shuffle: S('<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>'),
+    repeat: S('<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'),
+    home: S('<path d="M3 10.5L12 3l9 7.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/>'),
+    planet: S('<circle cx="12" cy="12" r="5.2"/><ellipse cx="12" cy="12" rx="10" ry="3.6" transform="rotate(-24 12 12)"/>'),
+    mark: S('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>'),
+    down: S('<polyline points="6 9 12 15 18 9"/>'),
+    dots: F('<circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>'),
+    dl: S('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
+    check: S('<polyline points="20 6 9 17 4 12"/>')
+  };
+  (function () {
+    var els = document.querySelectorAll("[data-icon]");
+    for (var i = 0; i < els.length; i++) els[i].innerHTML = ICON[els[i].getAttribute("data-icon")];
+  })();
+
+  /* ---------- elemen ---------- */
+  var audio = $("audio"), landing = $("landing"), explore = $("explore"), tabbar = $("tabbar");
+  var rowsEl = $("rows"), listEl = $("list"), emptyEl = $("empty"), hdrTitle = $("hdrTitle"), netEl = $("net");
+  var mini = $("mini"), miniCover = $("miniCover"), miniTitle = $("miniTitle"), miniSub = $("miniSub"), miniBtn = $("miniBtn");
+  var sheet = $("sheet"), vinyl = $("vinyl"), vLab = $("vLab"), sTitle = $("sTitle"), sArtist = $("sArtist");
+  var seek = $("seek"), curEl = $("cur"), durEl = $("dur");
+  var bShuffle = $("bShuffle"), bRepeat = $("bRepeat"), bPlay = $("bPlay"), bSave = $("bSave");
+  var bSaveTxt = $("bSaveTxt"), saveNote = $("saveNote");
+  var menuWrap = $("menuWrap"), mShuffle = $("mShuffle"), mRepeat = $("mRepeat"), toastEl = $("toast");
+
+  /* ---------- state ---------- */
+  var songs = [];
+  var index = -1;            // lagu yang sedang dimuat (index di songs)
+  var queue = [];            // urutan putar
+  var shuffle = false, repeat = false;
+  var dragging = false;      // slider seek
+  var saved = {}, busy = {};
+  var userPaused = false, resumeTime = 0, restoredAt = 0, lastSave = 0, wasPlaying = false;
+  var screen = "landing";
+  var view = "all";
+  var listIdx = [];          // index songs yang tampil di daftar
+  var rows = [];
+  var pos = 0, listH = 400, animId = null, drag = null, sheetOpen = false;
+
+  function fmt(s) {
+    if (!isFinite(s) || s < 0) return "0:00";
+    var m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return m + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+  function abs(file) { var a = document.createElement("a"); a.href = encodeURI(file); return a.href; }
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+  var toastT;
+  function toast(m) {
+    toastEl.textContent = m; toastEl.classList.add("on");
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { toastEl.classList.remove("on"); }, 2600);
+  }
+
+  /* ---------- cover ---------- */
+  function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+  function paintCover(el, song, i) {
+    if (song.cover) {
+      el.style.backgroundImage = 'url("' + encodeURI(song.cover) + '")';
+      el.style.backgroundSize = "cover"; el.style.backgroundPosition = "center";
+      el.textContent = ""; return;
+    }
+    var h = hash((song.title || "") + i) % 360;
+    el.style.backgroundSize = "auto";
+    if (i % 3 === 1) {
+      el.style.backgroundImage = "linear-gradient(135deg,#17171c,#4b4b57)";
+      el.style.color = "hsl(" + h + ",90%,72%)";
+    } else {
+      el.style.backgroundImage = "linear-gradient(135deg,hsl(" + h + ",78%,66%),hsl(" + ((h + 55) % 360) + ",80%,48%))";
+      el.style.color = "#fff";
+    }
+    el.textContent = (song.title || "?").charAt(0).toUpperCase();
+  }
+
+  /* ---------- daftar melengkung ---------- */
+  function measure() { listH = listEl.clientHeight || 400; }
+
+  function updateRows() {
+    var n = rows.length, cy = listH * 0.5;
+    for (var k = 0; k < n; k++) {
+      var r = rows[k], d = k - pos, ad = d < 0 ? -d : d;
+      if (ad > 3.6) {
+        if (!r.hid) { r.el.style.display = "none"; r.hid = true; }
+        continue;
+      }
+      if (r.hid) { r.el.style.display = "block"; r.hid = false; }
+      var y = cy - 36 + d * SP;
+      var x = 16 * Math.pow(ad, 1.9);
+      var s = Math.max(0.55, 1 - 0.11 * ad);
+      var op = clamp(1 - 0.27 * Math.pow(ad, 1.15), 0, 1);
+      var rot = (d < 0 ? 1 : -1) * Math.min(ad, 2) * 10;
+      var cl = Math.max(0, 1 - ad * 1.7);
+      r.el.style.transform = "translate3d(0," + y.toFixed(1) + "px,0)";
+      r.grp.style.transform = "translate3d(" + x.toFixed(1) + "px,0,0) scale(" + s.toFixed(3) + ")";
+      r.grp.style.opacity = op.toFixed(3);
+      r.txt.style.transform = "rotate(" + rot.toFixed(1) + "deg)";
+      r.pill.style.opacity = cl.toFixed(3);
+      r.btn.style.opacity = cl.toFixed(3);
+    }
+  }
+
+  function selK() { return rows.length ? clamp(Math.round(pos), 0, rows.length - 1) : 0; }
+
+  function stopAnim() { if (animId) { cancelAnimationFrame(animId); animId = null; } }
+  function animateTo(target, dur) {
+    stopAnim();
+    var from = pos, t0 = Date.now();
+    dur = dur || Math.min(650, 280 + Math.abs(target - from) * 90);
+    function step() {
+      var p = (Date.now() - t0) / dur;
+      if (p >= 1) { pos = target; updateRows(); animId = null; refreshLabels(); return; }
+      var e = 1 - Math.pow(1 - p, 3);
+      pos = from + (target - from) * e;
+      updateRows();
+      animId = requestAnimationFrame(step);
+    }
+    animId = requestAnimationFrame(step);
+  }
+
+  function refreshLabels() {
+    for (var k = 0; k < rows.length; k++) {
+      var playing = listIdx[k] === index && !audio.paused;
+      var t = playing ? "Pause" : "Play";
+      if (rows[k].btn.textContent !== t) rows[k].btn.textContent = t;
+    }
+  }
+
+  function buildList() {
+    listIdx = [];
+    for (var i = 0; i < songs.length; i++) {
+      if (view === "all" || saved[songs[i].file]) listIdx.push(i);
+    }
+    rowsEl.innerHTML = "";
+    rows = [];
+    for (var k = 0; k < listIdx.length; k++) {
+      var s = songs[listIdx[k]];
+      var el = document.createElement("div"); el.className = "row"; el.setAttribute("data-k", k);
+      var pill = document.createElement("div"); pill.className = "pill";
+      var grp = document.createElement("div"); grp.className = "grp";
+      var cover = document.createElement("div"); cover.className = "cover";
+      paintCover(cover, s, listIdx[k]);
+      var txt = document.createElement("div"); txt.className = "txt";
+      var t = document.createElement("div"); t.className = "t"; t.textContent = s.title || "";
+      var a = document.createElement("div"); a.className = "a"; a.textContent = s.artist || "";
+      txt.appendChild(t); txt.appendChild(a);
+      grp.appendChild(cover); grp.appendChild(txt);
+      var btn = document.createElement("button"); btn.className = "play"; btn.textContent = "Play";
+      el.appendChild(pill); el.appendChild(grp); el.appendChild(btn);
+      rowsEl.appendChild(el);
+      rows.push({ el: el, pill: pill, grp: grp, txt: txt, btn: btn, hid: false });
+    }
+    emptyEl.style.display = rows.length ? "none" : "block";
+    emptyEl.textContent = view === "saved"
+      ? "Belum ada lagu offline. Putar sebuah lagu lalu ketuk \"Simpan offline\"."
+      : "Belum ada lagu. Tambahkan di songs.json.";
+    measure();
+    refreshLabels();
+  }
+
+  function intro() {
+    if (!rows.length) return;
+    var k = listIdx.indexOf(index);
+    var sel = k >= 0 ? k : 0;
+    pos = sel - 2.8;
+    updateRows();
+    animateTo(sel, 1000);
+  }
+
+  /* ---------- sentuh ---------- */
+  var passiveOK = false;
+  try {
+    var o = Object.defineProperty({}, "passive", { get: function () { passiveOK = true; } });
+    window.addEventListener("t", null, o);
+  } catch (e) {}
+  var NP = passiveOK ? { passive: false } : false;
+
+  function findUp(el, cls) {
+    while (el && el !== document.body) {
+      if (el.classList && el.classList.contains(cls)) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+  function rubber(v) {
+    var max = rows.length - 1;
+    if (v < 0) return v * 0.35;
+    if (v > max) return max + (v - max) * 0.35;
+    return v;
+  }
+
+  listEl.addEventListener("touchstart", function (e) {
+    if (!rows.length) return;
+    stopAnim();
+    var t = e.touches[0];
+    drag = { y: t.clientY, x: t.clientX, pos: pos, moved: false, target: e.target, s: [{ y: t.clientY, t: Date.now() }] };
+  }, false);
+
+  listEl.addEventListener("touchmove", function (e) {
+    if (!drag) return;
+    var t = e.touches[0], dy = t.clientY - drag.y;
+    if (Math.abs(dy) > 6 || Math.abs(t.clientX - drag.x) > 6) drag.moved = true;
+    if (drag.moved) {
+      e.preventDefault();
+      pos = rubber(drag.pos - dy / SP);
+      updateRows();
+      drag.s.push({ y: t.clientY, t: Date.now() });
+      if (drag.s.length > 6) drag.s.shift();
+    }
+  }, NP);
+
+  function endDrag(cancel) {
+    if (!drag) return;
+    var d = drag; drag = null;
+    if (!d.moved && !cancel) { onTap(d.target); return; }
+    var v = 0, s = d.s;
+    if (s.length > 1) {
+      var a = s[0], b = s[s.length - 1], dt = b.t - a.t;
+      if (dt > 0 && Date.now() - b.t < 120) v = -(b.y - a.y) / dt / SP; // baris per ms
+    }
+    var target = clamp(Math.round(pos + clamp(v * 240, -4, 4)), 0, Math.max(0, rows.length - 1));
+    animateTo(target);
+  }
+  listEl.addEventListener("touchend", function () { endDrag(false); }, false);
+  listEl.addEventListener("touchcancel", function () { endDrag(true); }, false);
+
+  function onTap(target) {
+    var rowEl = findUp(target, "row");
+    if (!rowEl) return;
+    var k = parseInt(rowEl.getAttribute("data-k"), 10);
+    if (k !== selK()) { animateTo(k); return; }
+    var song = listIdx[k];
+    queue = listIdx.slice();
+    if (findUp(target, "play")) {
+      if (index === song) { audio.paused ? play() : userPause(); }
+      else load(song, true);
+    } else {
+      if (index !== song) load(song, true);
+      openSheet();
+    }
+  }
+
+  document.addEventListener("touchmove", function (e) {
+    if (e.target !== seek) e.preventDefault();
+  }, NP);
+
+  /* ---------- layar ---------- */
+  var tabs = document.querySelectorAll(".tab");
+  function go(name) {
+    if (name === screen) return;
+    screen = name;
+    landing.classList.toggle("hide", name !== "landing");
+    explore.classList.toggle("show", name !== "landing");
+    tabbar.classList.toggle("show", name !== "landing");
+    closeMenu(); closeSheet(); updateA2hs();
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.toggle("on", tabs[i].getAttribute("data-go") === name);
+    }
+    if (name !== "landing") {
+      view = name === "saved" ? "saved" : "all";
+      hdrTitle.textContent = view === "saved" ? "Tersimpan" : "Explore";
+      buildList();
+      intro();
+    }
+    updateUI();
+  }
+  $("start").addEventListener("click", function () { go("explore"); });
+  for (var ti = 0; ti < tabs.length; ti++) {
+    (function (b) { b.addEventListener("click", function () { go(b.getAttribute("data-go")); }); })(tabs[ti]);
+  }
+
+  function openSheet() { sheetOpen = true; sheet.classList.add("open"); updateUI(); }
+  function closeSheet() { sheetOpen = false; sheet.classList.remove("open"); updateUI(); }
+  $("sheetClose").addEventListener("click", closeSheet);
+  mini.addEventListener("click", function (e) {
+    if (findUp(e.target, "miniBtnWrap") || e.target === miniBtn || miniBtn.contains(e.target)) return;
+    openSheet();
+  });
+  miniBtn.addEventListener("click", function () { audio.paused ? play() : userPause(); });
+
+  function closeMenu() { menuWrap.classList.remove("on"); }
+  $("menuBtn").addEventListener("click", function () { updateMenu(); menuWrap.classList.add("on"); });
+  menuWrap.addEventListener("click", function (e) { if (e.target === menuWrap) closeMenu(); });
+  $("mSaveAll").addEventListener("click", function () { closeMenu(); saveAll(); });
+  mShuffle.addEventListener("click", function () { toggleShuffle(); updateMenu(); });
+  mRepeat.addEventListener("click", function () { toggleRepeat(); updateMenu(); });
+  function updateMenu() {
+    mShuffle.textContent = "Acak: " + (shuffle ? "nyala" : "mati");
+    mRepeat.textContent = "Ulangi: " + (repeat ? "nyala" : "mati");
+    $("mSaveAll").style.display = hasCache ? "block" : "none";
+  }
+
+  /* ---------- ajakan pasang ke layar utama ---------- */
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  var standalone = window.navigator.standalone === true;
+  var appMode = /[?&]app=1/.test(location.search);
+  var a2hsOff = false;
+  try { a2hsOff = localStorage.getItem("musik-a2hs") === "1"; } catch (e) {}
+  var a2hsEl = $("a2hs"), arrowEl = $("arrow");
+  function updateA2hs() {
+    var show = isIOS && !standalone && !a2hsOff && screen === "landing";
+    a2hsEl.classList.toggle("on", show);
+    arrowEl.classList.toggle("on", show);
+    $("a2hsBtn").style.display = "none";
+    $("a2hsTxt").innerHTML = "Ketuk <b>Bagikan</b> di bawah, lalu <b>Tambahkan ke Layar Utama</b>";
+  }
+  $("a2hsBtn").addEventListener("click", function () {
+    location.href = location.pathname + "?app=1";
+  });
+  $("a2hsX").addEventListener("click", function () {
+    a2hsOff = true;
+    try { localStorage.setItem("musik-a2hs", "1"); } catch (e) {}
+    updateA2hs();
+  });
+
+  /* ---------- UI ---------- */
+  function updateUI() {
+    var s = index >= 0 ? songs[index] : null;
+    mini.classList.toggle("on", !!s && screen !== "landing" && !sheetOpen);
+    if (s) {
+      miniTitle.textContent = s.title || "";
+      miniSub.textContent = (restoredAt > 0 && audio.paused) ? ("Lanjut dari " + fmt(restoredAt)) : (s.artist || "");
+      paintCover(miniCover, s, index);
+      paintCover(vLab, s, index);
+      sTitle.textContent = s.title || "";
+      sArtist.textContent = s.artist || "\u00a0";
+    }
+    var playing = !audio.paused;
+    miniBtn.innerHTML = playing ? ICON.pause : ICON.play;
+    bPlay.innerHTML = playing ? ICON.pause : ICON.play;
+    vinyl.classList.toggle("playing", playing);
+    bShuffle.classList.toggle("on", shuffle);
+    bRepeat.classList.toggle("on", repeat);
+    refreshLabels();
+    updateSave();
+  }
+
+  function updateSave() {
+    if (!hasCache || index < 0) { bSave.style.display = "none"; saveNote.textContent = ""; return; }
+    bSave.style.display = "flex";
+    var f = songs[index].file;
+    var ic = bSave.getElementsByTagName("i")[0];
+    bSave.className = busy[f] ? "busy" : (saved[f] ? "saved" : "");
+    if (busy[f]) { ic.innerHTML = ICON.dl; bSaveTxt.textContent = "Menyimpan..."; saveNote.textContent = ""; }
+    else if (saved[f]) { ic.innerHTML = ICON.check; bSaveTxt.textContent = "Tersimpan offline"; saveNote.textContent = "Ketuk lagi untuk menghapus dari offline"; }
+    else { ic.innerHTML = ICON.dl; bSaveTxt.textContent = "Simpan offline"; saveNote.textContent = ""; }
+  }
+
+  function updateNet() { netEl.classList.toggle("on", !navigator.onLine); }
+  window.addEventListener("online", updateNet);
+  window.addEventListener("offline", updateNet);
+  updateNet();
+
+  /* ---------- simpan offline ---------- */
+  function refreshSaved() {
+    if (!hasCache) return;
+    caches.open(CACHE).then(function (c) {
+      return Promise.all(songs.map(function (s) {
+        return c.match(abs(s.file)).then(function (r) { saved[s.file] = !!r; });
+      }));
+    }).then(updateUI, updateUI);
+  }
+  function saveSong(i) {
+    var f = songs[i].file;
+    if (busy[f]) return Promise.resolve();
+    busy[f] = true; updateUI();
+    var url = abs(f);
+    return caches.open(CACHE).then(function (c) {
+      return fetch(url).then(function (res) {
+        if (!res.ok) throw new Error("gagal");
+        return c.put(url, res);
+      });
+    }).then(function () {
+      saved[f] = true;
+    }).catch(function () {
+      toast("Gagal menyimpan \"" + songs[i].title + "\" (internet/penyimpanan penuh)");
+    }).then(function () { busy[f] = false; updateUI(); });
+  }
+  function removeSong(i) {
+    var f = songs[i].file;
+    return caches.open(CACHE).then(function (c) { return c["delete"](abs(f)); })
+      .then(function () { saved[f] = false; updateUI(); });
+  }
+  function saveAll() {
+    if (!hasCache) return;
+    toast("Menyimpan semua lagu...");
+    var chain = Promise.resolve();
+    songs.forEach(function (s, i) {
+      chain = chain.then(function () { if (!saved[s.file]) return saveSong(i); });
+    });
+    chain.then(function () { toast("Selesai menyimpan"); });
+  }
+  bSave.addEventListener("click", function () {
+    if (index < 0) return;
+    if (saved[songs[index].file]) removeSong(index); else saveSong(index);
+  });
+
+  /* ---------- audio ---------- */
+  function saveState() {
+    try {
+      if (index >= 0 && songs[index]) {
+        localStorage.setItem("musik-last", JSON.stringify({ file: songs[index].file, t: audio.currentTime || 0 }));
+      }
+    } catch (e) {}
+  }
+  function setMediaSession(song) {
+    if ("mediaSession" in navigator && window.MediaMetadata) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist || "" });
+    }
+  }
+  function load(i, autoplay) {
+    if (i < 0 || i >= songs.length) return;
+    index = i; resumeTime = 0; restoredAt = 0;
+    audio.src = encodeURI(songs[i].file);
+    setMediaSession(songs[i]);
+    curEl.textContent = "0:00"; durEl.textContent = "0:00"; seek.value = 0; paintSeek(0);
+    updateUI();
+    if (screen !== "landing" && !drag) {
+      var k = listIdx.indexOf(i);
+      if (k >= 0) animateTo(k);
+    }
+    if (autoplay) play();
+  }
+  function play() {
+    if (index < 0 && songs.length) { queue = songs.map(function (s, i) { return i; }); load(0, true); return; }
+    var p = audio.play();
+    if (p && p.catch) p.catch(function () { toast("Ketuk putar untuk memulai"); });
+  }
+  function pause() { audio.pause(); }
+  function userPause() { userPaused = true; audio.pause(); }
+
+  function getQueue() {
+    if (queue.indexOf(index) < 0) queue = songs.map(function (s, i) { return i; });
+    return queue;
+  }
+  function next(auto) {
+    if (!songs.length) return;
+    var q = getQueue(), p = q.indexOf(index), n;
+    if (shuffle && q.length > 1) {
+      do { n = Math.floor(Math.random() * q.length); } while (n === p);
+    } else {
+      n = p + 1;
+      if (n >= q.length) {
+        if (repeat || !auto) n = 0; else { updateUI(); return; }
+      }
+    }
+    load(q[n], true);
+  }
+  function prev() {
+    if (!songs.length) return;
+    if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+    var q = getQueue(), p = q.indexOf(index);
+    load(q[p <= 0 ? q.length - 1 : p - 1], true);
+  }
+  function toggleShuffle() { shuffle = !shuffle; updateUI(); }
+  function toggleRepeat() { repeat = !repeat; updateUI(); }
+
+  bPlay.addEventListener("click", function () { audio.paused ? play() : userPause(); });
+  $("bNext").addEventListener("click", function () { next(false); });
+  $("bPrev").addEventListener("click", prev);
+  bShuffle.addEventListener("click", toggleShuffle);
+  bRepeat.addEventListener("click", toggleRepeat);
+
+  function paintSeek(p) {
+    seek.style.background = "linear-gradient(to right,#111 " + p + "%,#d8dbec " + p + "%)";
+  }
+
+  audio.addEventListener("play", function () { userPaused = false; restoredAt = 0; updateUI(); });
+  audio.addEventListener("pause", updateUI);
+  audio.addEventListener("playing", function () { wasPlaying = true; });
+  audio.addEventListener("ended", function () {
+    wasPlaying = false;
+    if (repeat && !shuffle && getQueue().length === 1) { audio.currentTime = 0; play(); }
+    else next(true);
+  });
+  audio.addEventListener("loadedmetadata", function () {
+    durEl.textContent = fmt(audio.duration);
+    if (resumeTime > 0 && resumeTime < audio.duration) { try { audio.currentTime = resumeTime; } catch (e) {} }
+    resumeTime = 0;
+  });
+  audio.addEventListener("timeupdate", function () {
+    curEl.textContent = fmt(audio.currentTime);
+    if (!dragging && audio.duration) {
+      var p = (audio.currentTime / audio.duration) * 100;
+      seek.value = p; paintSeek(p);
+    }
+    var now = Date.now();
+    if (now - lastSave > 2000) { lastSave = now; saveState(); }
+  });
+  audio.addEventListener("error", function () {
+    toast(navigator.onLine ? "File tidak bisa diputar" : "Lagu ini belum disimpan offline");
+  });
+
+  seek.addEventListener("touchstart", function () { dragging = true; });
+  seek.addEventListener("mousedown", function () { dragging = true; });
+  seek.addEventListener("input", function () { paintSeek(seek.value); });
+  seek.addEventListener("change", function () {
+    if (audio.duration) audio.currentTime = (seek.value / 100) * audio.duration;
+    dragging = false;
+  });
+  seek.addEventListener("touchend", function () { dragging = false; });
+
+  if ("mediaSession" in navigator) {
+    try {
+      navigator.mediaSession.setActionHandler("play", play);
+      navigator.mediaSession.setActionHandler("pause", userPause);
+      navigator.mediaSession.setActionHandler("previoustrack", prev);
+      navigator.mediaSession.setActionHandler("nexttrack", function () { next(false); });
+    } catch (e) {}
+  }
+
+  /* lanjut otomatis saat halaman kembali tampil */
+  function tryResume() {
+    if (index >= 0 && !userPaused && audio.paused && audio.src && wasPlaying) play();
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) saveState(); else tryResume();
+  });
+  window.addEventListener("pagehide", saveState);
+  window.addEventListener("pageshow", function (e) { if (e.persisted) tryResume(); });
+  window.addEventListener("resize", function () { measure(); updateRows(); });
+  window.addEventListener("orientationchange", function () { setTimeout(function () { measure(); updateRows(); }, 300); });
+
+  /* ---------- service worker (offline & update otomatis) ---------- */
+  if (hasCache) {
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register("sw.js").then(function (reg) {
+      reg.update();
+      document.addEventListener("visibilitychange", function () { if (!document.hidden) reg.update(); });
+    }).catch(function () {});
+    var reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (!hadController || reloaded) { hadController = true; return; }
+      reloaded = true;
+      var tries = 0;
+      var t = setInterval(function () {
+        tries++;
+        if (audio.paused || tries > 600) { clearInterval(t); location.reload(); }
+      }, 1000);
+    });
+  } else {
+    $("mSaveAll").style.display = "none";
+  }
+
+  /* ---------- muat daftar lagu ---------- */
+  updateUI();
+  updateA2hs();
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "songs.json?t=" + Date.now(), true);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) return;
+    if (xhr.status === 200) {
+      try { songs = JSON.parse(xhr.responseText); } catch (e) { songs = []; }
+    }
+    try {
+      var last = JSON.parse(localStorage.getItem("musik-last") || "null");
+      if (last) {
+        for (var k = 0; k < songs.length; k++) {
+          if (songs[k].file === last.file) {
+            load(k, false);
+            resumeTime = last.t || 0;
+            restoredAt = resumeTime;
+            updateUI();
+            break;
+          }
+        }
+      }
+    } catch (e) {}
+    if (screen !== "landing") { buildList(); intro(); }
+    refreshSaved();
+  };
+  xhr.send();
+})();
+</script>
+</body>
+</html>
