@@ -6,12 +6,18 @@
 <meta name="apple-mobile-web-app-title" content="Musik">
 <meta name="theme-color" content="#e6e8f6">
 <link rel="apple-touch-icon" href="icon.png">
-<meta name="apple-mobile-web-app-capable" content="no">
 <script>
-  // Pastikan tidak pernah jadi aplikasi layar penuh (audio latar belakang mati di iOS 12)
-  if (/[?&]app=1/.test(location.search) && window.history && history.replaceState) {
-    history.replaceState(null, "", location.pathname);
-  }
+  // ?app=1 -> layar penuh (PWA, audio berhenti di latar belakang). Tanpa itu -> Safari (audio tetap jalan).
+  (function () {
+    var full = /[?&]app=1/.test(location.search);
+    var pairs = [["apple-mobile-web-app-capable", full ? "yes" : "no"]];
+    if (full) pairs.push(["apple-mobile-web-app-status-bar-style", "default"]);
+    for (var i = 0; i < pairs.length; i++) {
+      var m = document.createElement("meta");
+      m.name = pairs[i][0]; m.content = pairs[i][1];
+      document.head.appendChild(m);
+    }
+  })();
 </script>
 <title>Musik</title>
 <style>
