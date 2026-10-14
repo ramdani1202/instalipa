@@ -656,11 +656,9 @@
   function updateA2hs() {
     var show = isIOS && !standalone && !a2hsOff && screen === "landing";
     a2hsEl.classList.toggle("on", show);
-    arrowEl.classList.toggle("on", show && appMode);
-    $("a2hsBtn").style.display = appMode ? "none" : "block";
-    $("a2hsTxt").innerHTML = appMode
-      ? "Ketuk ikon <b>Bagikan</b> di bawah, lalu pilih <b>Tambahkan ke Layar Utama</b>"
-      : "Pasang sebagai aplikasi di layar utama";
+    arrowEl.classList.toggle("on", show);
+    $("a2hsBtn").style.display = "none";
+    $("a2hsTxt").innerHTML = "Ketuk <b>Bagikan</b> di bawah, lalu <b>Tambahkan ke Layar Utama</b>";
   }
   $("a2hsBtn").addEventListener("click", function () {
     location.href = location.pathname + "?app=1";
