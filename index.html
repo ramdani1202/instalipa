@@ -99,6 +99,19 @@
   var dragging = false;
   var saved = {};
   var busy = {};
+  var userPaused = false;
+  var resumeTime = 0;
+  var lastSave = 0;
+
+  function saveState() {
+    try {
+      if (index >= 0 && songs[index]) {
+        localStorage.setItem("musik-last", JSON.stringify({ file: songs[index].file, t: audio.currentTime || 0 }));
+      }
+    } catch (e) {}
+  }
+
+  function userPause() { userPaused = true; audio.pause(); }
 
   if (hasCache) {
     var hadController = !!navigator.serviceWorker.controller;
@@ -264,7 +277,7 @@
     load(index <= 0 ? songs.length - 1 : index - 1, true);
   }
 
-  playBtn.addEventListener("click", function () { audio.paused ? play() : pause(); });
+  playBtn.addEventListener("click", function () { audio.paused ? play() : userPause(); });
   document.getElementById("next").addEventListener("click", function () { next(false); });
   document.getElementById("prev").addEventListener("click", prev);
   saveAllBtn.addEventListener("click", saveAll);
@@ -289,15 +302,23 @@
     if (el && el.tagName === "LI") load(parseInt(el.getAttribute("data-i"), 10), true);
   });
 
-  audio.addEventListener("play", function () { playBtn.innerHTML = "&#9208;&#xFE0E;"; });
+  audio.addEventListener("play", function () { userPaused = false; playBtn.innerHTML = "&#9208;&#xFE0E;"; });
   audio.addEventListener("pause", function () { playBtn.innerHTML = "&#9654;&#xFE0E;"; });
   audio.addEventListener("ended", function () {
     if (repeat && !shuffle && songs.length === 1) { audio.currentTime = 0; play(); }
     else next(true);
   });
-  audio.addEventListener("loadedmetadata", function () { durEl.textContent = fmt(audio.duration); });
+  audio.addEventListener("loadedmetadata", function () {
+    durEl.textContent = fmt(audio.duration);
+    if (resumeTime > 0 && resumeTime < audio.duration) {
+      try { audio.currentTime = resumeTime; } catch (e) {}
+    }
+    resumeTime = 0;
+  });
   audio.addEventListener("timeupdate", function () {
     curEl.textContent = fmt(audio.currentTime);
+    var now = new Date().getTime();
+    if (now - lastSave > 2000) { lastSave = now; saveState(); }
     if (!dragging && audio.duration) seek.value = (audio.currentTime / audio.duration) * 100;
   });
   audio.addEventListener("error", function () {
@@ -315,11 +336,25 @@
   if ("mediaSession" in navigator) {
     try {
       navigator.mediaSession.setActionHandler("play", play);
-      navigator.mediaSession.setActionHandler("pause", pause);
+      navigator.mediaSession.setActionHandler("pause", userPause);
       navigator.mediaSession.setActionHandler("previoustrack", prev);
       navigator.mediaSession.setActionHandler("nexttrack", function () { next(false); });
     } catch (e) {}
   }
+
+  function tryResume() {
+    if (index >= 0 && !userPaused && audio.paused && audio.src && wasPlaying) {
+      play();
+    }
+  }
+  var wasPlaying = false;
+  audio.addEventListener("playing", function () { wasPlaying = true; });
+  audio.addEventListener("ended", function () { wasPlaying = false; });
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { saveState(); } else { tryResume(); }
+  });
+  window.addEventListener("pagehide", saveState);
+  window.addEventListener("pageshow", function (e) { if (e.persisted) tryResume(); });
 
   var xhr = new XMLHttpRequest();
   xhr.open("GET", "songs.json?t=" + new Date().getTime(), true);
@@ -330,6 +365,19 @@
     }
     render();
     refreshSaved();
+    try {
+      var last = JSON.parse(localStorage.getItem("musik-last") || "null");
+      if (last && index < 0) {
+        for (var k = 0; k < songs.length; k++) {
+          if (songs[k].file === last.file) {
+            load(k, false);
+            resumeTime = last.t || 0;
+            statusEl.textContent = "Lanjutkan dari " + fmt(resumeTime) + " \u2014 ketuk putar";
+            break;
+          }
+        }
+      }
+    } catch (e) {}
   };
   xhr.send();
 })();
