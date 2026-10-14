@@ -1,0 +1,19 @@
+ISI ZIP
+- index.html      : halaman install IPA (itms-services)
+- manifest.plist  : manifest OTA (ganti bundle-identifier sesuai IPA)
+- player.html     : music player web (bisa offline)
+- sw.js           : service worker untuk offline
+- songs.json      : daftar lagu (edit nama file MP3)
+
+YANG HARUS KAMU TAMBAH SENDIRI
+- app.ipa  (sudah ter-sign)
+- file MP3 (nama harus sama dengan di songs.json)
+
+UPLOAD SEMUA KE ROOT REPO "instalipa" LALU AKTIFKAN GITHUB PAGES.
+
+Install IPA : https://ramdani1202.github.io/instalipa/
+Musik       : https://ramdani1202.github.io/instalipa/player.html
+
+OFFLINE
+Buka player.html di Safari saat online, ketuk "Simpan" di tiap lagu
+atau "Simpan semua offline". Setelah tersimpan, lagu bisa diputar tanpa internet.

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-title" content="Musik">
+<title>Musik</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background:#111; color:#fff; font-family:-apple-system,Helvetica,sans-serif;
+         padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
+  .wrap { max-width:480px; margin:0 auto; padding:20px 16px 40px; }
+  .now { text-align:center; padding:24px 0 12px; }
+  .art { width:160px; height:160px; margin:0 auto 16px; border-radius:20px;
+         background:linear-gradient(135deg,#ff375f,#5e5ce6); display:flex;
+         align-items:center; justify-content:center; font-size:64px; }
+  #title { font-size:20px; font-weight:600; margin:0 8px 4px; word-wrap:break-word; }
+  #status { font-size:13px; opacity:.6; min-height:16px; }
+  .bar { display:flex; align-items:center; margin:16px 0 8px; font-size:12px; opacity:.8; }
+  .bar span { width:40px; text-align:center; }
+  #seek { flex:1; }
+  input[type=range] { -webkit-appearance:none; height:4px; background:#444; border-radius:2px; outline:none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px;
+         border-radius:50%; background:#fff; }
+  .ctrl { display:flex; justify-content:center; align-items:center; margin:12px 0 16px; }
+  .ctrl button { background:none; border:0; color:#fff; font-size:34px; margin:0 14px; padding:8px; }
+  .ctrl #play { font-size:52px; }
+  .ctrl button.on { color:#ff375f; }
+  .tools { display:flex; justify-content:space-between; align-items:center; margin:0 0 8px; font-size:13px; }
+  #saveall { background:#2a2a2c; color:#fff; border:0; border-radius:8px; padding:8px 12px; font-size:13px; }
+  #net { opacity:.6; }
+  ul { list-style:none; margin:0; padding:0; }
+  li { display:flex; align-items:center; padding:12px; border-bottom:1px solid #2a2a2c; font-size:16px; }
+  li .txt { flex:1; min-width:0; word-wrap:break-word; }
+  li.active .txt { color:#ff375f; font-weight:600; }
+  li small { display:block; opacity:.5; font-size:12px; margin-top:2px; }
+  li .dl { background:none; border:1px solid #555; color:#fff; border-radius:8px;
+           min-width:56px; padding:6px 8px; font-size:12px; margin-left:10px; }
+  li .dl.saved { border-color:#30d158; color:#30d158; }
+  li .dl.busy { opacity:.5; }
+  #empty { text-align:center; opacity:.6; padding:24px; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="now">
+    <div class="art">&#9835;</div>
+    <div id="title">Pilih lagu</div>
+    <div id="status">&nbsp;</div>
+  </div>
+
+  <div class="bar">
+    <span id="cur">0:00</span>
+    <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+    <span id="dur">0:00</span>
+  </div>
+
+  <div class="ctrl">
+    <button id="shuffle" aria-label="Acak">&#8645;</button>
+    <button id="prev" aria-label="Sebelumnya">&#9198;&#xFE0E;</button>
+    <button id="play" aria-label="Putar">&#9654;&#xFE0E;</button>
+    <button id="next" aria-label="Berikutnya">&#9197;&#xFE0E;</button>
+    <button id="repeat" aria-label="Ulangi">&#8635;</button>
+  </div>
+
+  <div class="tools">
+    <span id="net"></span>
+    <button id="saveall">Simpan semua offline</button>
+  </div>
+
+  <ul id="list"></ul>
+  <div id="empty" style="display:none">Belum ada lagu. Tambahkan di songs.json.</div>
+</div>
+
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+(function () {
+  var CACHE = "musik-v1";
+  var hasCache = !!(window.caches && "serviceWorker" in navigator);
+
+  var audio = document.getElementById("audio");
+  var listEl = document.getElementById("list");
+  var titleEl = document.getElementById("title");
+  var statusEl = document.getElementById("status");
+  var playBtn = document.getElementById("play");
+  var seek = document.getElementById("seek");
+  var curEl = document.getElementById("cur");
+  var durEl = document.getElementById("dur");
+  var shuffleBtn = document.getElementById("shuffle");
+  var repeatBtn = document.getElementById("repeat");
+  var saveAllBtn = document.getElementById("saveall");
+  var netEl = document.getElementById("net");
+
+  var songs = [];
+  var index = -1;
+  var shuffle = false;
+  var repeat = false;
+  var dragging = false;
+  var saved = {};
+  var busy = {};
+
+  if (hasCache) {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  } else {
+    saveAllBtn.style.display = "none";
+  }
+
+  function fmt(s) {
+    if (!isFinite(s)) return "0:00";
+    var m = Math.floor(s / 60);
+    var sec = Math.floor(s % 60);
+    return m + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+
+  function abs(file) {
+    var a = document.createElement("a");
+    a.href = encodeURI(file);
+    return a.href;
+  }
+
+  function updateNet() {
+    netEl.textContent = navigator.onLine ? "Online" : "Offline";
+  }
+  window.addEventListener("online", updateNet);
+  window.addEventListener("offline", updateNet);
+  updateNet();
+
+  function render() {
+    listEl.innerHTML = "";
+    for (var i = 0; i < songs.length; i++) {
+      var li = document.createElement("li");
+      li.setAttribute("data-i", i);
+      li.className = i === index ? "active" : "";
+
+      var txt = document.createElement("div");
+      txt.className = "txt";
+      txt.appendChild(document.createTextNode(songs[i].title));
+      if (songs[i].artist) {
+        var sm = document.createElement("small");
+        sm.appendChild(document.createTextNode(songs[i].artist));
+        txt.appendChild(sm);
+      }
+      li.appendChild(txt);
+
+      if (hasCache) {
+        var b = document.createElement("button");
+        var f = songs[i].file;
+        b.className = "dl" + (saved[f] ? " saved" : "") + (busy[f] ? " busy" : "");
+        b.setAttribute("data-i", i);
+        b.textContent = busy[f] ? "..." : (saved[f] ? "\u2713 Offline" : "Simpan");
+        li.appendChild(b);
+      }
+      listEl.appendChild(li);
+    }
+    document.getElementById("empty").style.display = songs.length ? "none" : "block";
+  }
+
+  function refreshSaved() {
+    if (!hasCache) { render(); return; }
+    caches.open(CACHE).then(function (c) {
+      return Promise.all(songs.map(function (s) {
+        return c.match(abs(s.file)).then(function (r) { saved[s.file] = !!r; });
+      }));
+    }).then(render, render);
+  }
+
+  function saveSong(i) {
+    var f = songs[i].file;
+    if (busy[f]) return Promise.resolve();
+    busy[f] = true;
+    render();
+    var url = abs(f);
+    return caches.open(CACHE).then(function (c) {
+      return fetch(url).then(function (res) {
+        if (!res.ok) throw new Error("gagal");
+        return c.put(url, res);
+      });
+    }).then(function () {
+      saved[f] = true;
+    }).catch(function () {
+      statusEl.textContent = "Gagal menyimpan \"" + songs[i].title + "\" (internet/penyimpanan penuh)";
+    }).then(function () {
+      busy[f] = false;
+      render();
+    });
+  }
+
+  function removeSong(i) {
+    var f = songs[i].file;
+    return caches.open(CACHE).then(function (c) { return c["delete"](abs(f)); })
+      .then(function () { saved[f] = false; render(); });
+  }
+
+  function saveAll() {
+    var chain = Promise.resolve();
+    songs.forEach(function (s, i) {
+      chain = chain.then(function () { if (!saved[s.file]) return saveSong(i); });
+    });
+    chain.then(function () { statusEl.textContent = "Selesai menyimpan"; });
+  }
+
+  function setMediaSession(song) {
+    if ("mediaSession" in navigator && window.MediaMetadata) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: song.title, artist: song.artist || ""
+      });
+    }
+  }
+
+  function load(i, autoplay) {
+    if (i < 0 || i >= songs.length) return;
+    index = i;
+    audio.src = encodeURI(songs[i].file);
+    titleEl.textContent = songs[i].title;
+    statusEl.textContent = songs[i].artist || "";
+    setMediaSession(songs[i]);
+    render();
+    if (autoplay) play();
+  }
+
+  function play() {
+    if (index < 0 && songs.length) { load(0, true); return; }
+    var p = audio.play();
+    if (p && p.catch) p.catch(function () { statusEl.textContent = "Ketuk putar untuk memulai"; });
+  }
+
+  function pause() { audio.pause(); }
+
+  function next(auto) {
+    if (!songs.length) return;
+    var n;
+    if (shuffle && songs.length > 1) {
+      do { n = Math.floor(Math.random() * songs.length); } while (n === index);
+    } else {
+      n = index + 1;
+      if (n >= songs.length) {
+        if (repeat || !auto) n = 0; else { return; }
+      }
+    }
+    load(n, true);
+  }
+
+  function prev() {
+    if (!songs.length) return;
+    if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+    load(index <= 0 ? songs.length - 1 : index - 1, true);
+  }
+
+  playBtn.addEventListener("click", function () { audio.paused ? play() : pause(); });
+  document.getElementById("next").addEventListener("click", function () { next(false); });
+  document.getElementById("prev").addEventListener("click", prev);
+  saveAllBtn.addEventListener("click", saveAll);
+
+  shuffleBtn.addEventListener("click", function () {
+    shuffle = !shuffle;
+    shuffleBtn.className = shuffle ? "on" : "";
+  });
+  repeatBtn.addEventListener("click", function () {
+    repeat = !repeat;
+    repeatBtn.className = repeat ? "on" : "";
+  });
+
+  listEl.addEventListener("click", function (e) {
+    var el = e.target;
+    if (el.className && String(el.className).indexOf("dl") !== -1) {
+      var i = parseInt(el.getAttribute("data-i"), 10);
+      if (saved[songs[i].file]) removeSong(i); else saveSong(i);
+      return;
+    }
+    while (el && el !== listEl && el.tagName !== "LI") el = el.parentNode;
+    if (el && el.tagName === "LI") load(parseInt(el.getAttribute("data-i"), 10), true);
+  });
+
+  audio.addEventListener("play", function () { playBtn.innerHTML = "&#9208;&#xFE0E;"; });
+  audio.addEventListener("pause", function () { playBtn.innerHTML = "&#9654;&#xFE0E;"; });
+  audio.addEventListener("ended", function () {
+    if (repeat && !shuffle && songs.length === 1) { audio.currentTime = 0; play(); }
+    else next(true);
+  });
+  audio.addEventListener("loadedmetadata", function () { durEl.textContent = fmt(audio.duration); });
+  audio.addEventListener("timeupdate", function () {
+    curEl.textContent = fmt(audio.currentTime);
+    if (!dragging && audio.duration) seek.value = (audio.currentTime / audio.duration) * 100;
+  });
+  audio.addEventListener("error", function () {
+    statusEl.textContent = navigator.onLine ? "File tidak bisa diputar" : "Lagu ini belum disimpan offline";
+  });
+
+  seek.addEventListener("touchstart", function () { dragging = true; });
+  seek.addEventListener("mousedown", function () { dragging = true; });
+  seek.addEventListener("change", function () {
+    if (audio.duration) audio.currentTime = (seek.value / 100) * audio.duration;
+    dragging = false;
+  });
+  seek.addEventListener("touchend", function () { dragging = false; });
+
+  if ("mediaSession" in navigator) {
+    try {
+      navigator.mediaSession.setActionHandler("play", play);
+      navigator.mediaSession.setActionHandler("pause", pause);
+      navigator.mediaSession.setActionHandler("previoustrack", prev);
+      navigator.mediaSession.setActionHandler("nexttrack", function () { next(false); });
+    } catch (e) {}
+  }
+
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "songs.json?t=" + new Date().getTime(), true);
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) return;
+    if (xhr.status === 200) {
+      try { songs = JSON.parse(xhr.responseText); } catch (e) { songs = []; }
+    }
+    render();
+    refreshSaved();
+  };
+  xhr.send();
+})();
+</script>
+</body>
+</html>
