@@ -1,3 +1,5 @@
+// Nama cache tetap. Tidak perlu dinaikkan: halaman & songs.json selalu diambil dari
+// jaringan dulu (network-first), jadi update otomatis tanpa ganti versi.
 var CACHE = "musik-v1";
 var SHELL = ["player.html", "songs.json"];
 

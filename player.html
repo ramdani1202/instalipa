@@ -101,7 +101,24 @@
   var busy = {};
 
   if (hasCache) {
-    navigator.serviceWorker.register("sw.js").catch(function () {});
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register("sw.js").then(function (reg) {
+      reg.update();
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) reg.update();
+      });
+    }).catch(function () {});
+    // Kalau ada service worker baru yang aktif, muat ulang halaman sekali (tanpa memotong lagu yang sedang diputar)
+    var reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (!hadController || reloaded) { hadController = true; return; }
+      reloaded = true;
+      var tries = 0;
+      var t = setInterval(function () {
+        tries++;
+        if (audio.paused || tries > 600) { clearInterval(t); location.reload(); }
+      }, 1000);
+    });
   } else {
     saveAllBtn.style.display = "none";
   }
