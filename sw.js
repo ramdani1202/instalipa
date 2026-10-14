@@ -1,7 +1,7 @@
 // Nama cache tetap. Tidak perlu dinaikkan: halaman & songs.json selalu diambil dari
 // jaringan dulu (network-first), jadi update otomatis tanpa ganti versi.
 var CACHE = "musik-v1";
-var SHELL = ["player.html", "songs.json"];
+var SHELL = ["./", "index.html", "songs.json"];
 
 function key(url) {
   var u = new URL(url);
@@ -88,7 +88,7 @@ self.addEventListener("fetch", function (e) {
       }).catch(function () {
         return caches.open(CACHE).then(function (c) {
           return c.match(k).then(function (r) {
-            return r || c.match(new URL("player.html", self.location).href);
+            return r || c.match(new URL("index.html", self.location).href);
           });
         });
       })
