@@ -1171,7 +1171,7 @@
       var name = s.name || ((s.title || "file") + extFor(s.type));
       var file = null;
       try { file = new File([blob], name, { type: s.type }); } catch (e) {}
-      if (file && navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+      if (isIOS && file && navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
         if (w) { try { w.close(); } catch (e) {} }
         return navigator.share({ files: [file], title: s.title }).catch(function () {});
       }
@@ -1179,7 +1179,7 @@
         var a = document.createElement("a"), u = URL.createObjectURL(blob);
         a.href = u; a.download = name; document.body.appendChild(a); a.click();
         setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(u); }, 5000);
-        toast("Disimpan ke folder Unduhan / Galeri");
+        toast("Tersimpan di folder Unduhan (cek Galeri > Download)");
         return;
       }
       if (kindOf(s) === "image") {
