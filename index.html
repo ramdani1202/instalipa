@@ -6,19 +6,8 @@
 <meta name="apple-mobile-web-app-title" content="Musik">
 <meta name="theme-color" content="#e6e8f6">
 <link rel="apple-touch-icon" href="icon.png">
-<script>
-  // ?app=1 -> layar penuh (PWA, audio berhenti di latar belakang). Tanpa itu -> Safari (audio tetap jalan).
-  (function () {
-    var full = /[?&]app=1/.test(location.search);
-    var pairs = [["apple-mobile-web-app-capable", full ? "yes" : "no"]];
-    if (full) pairs.push(["apple-mobile-web-app-status-bar-style", "default"]);
-    for (var i = 0; i < pairs.length; i++) {
-      var m = document.createElement("meta");
-      m.name = pairs[i][0]; m.content = pairs[i][1];
-      document.head.appendChild(m);
-    }
-  })();
-</script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Musik</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
