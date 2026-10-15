@@ -105,7 +105,7 @@
   #net.on { display: inline-block; }
   #menuBtn, #addBtn { width: 38px; height: 38px; padding: 7px; border: 0; background: none; color: #111; }
 
-  #list { position: absolute; left: 0; right: 0; top: 68px; bottom: 74px; overflow: hidden; }
+  #list { position: absolute; left: 0; right: 0; top: 106px; bottom: 74px; overflow: hidden; }
   #rows { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
   .fade-t, .fade-b { position: absolute; left: 0; right: 0; height: 46px; pointer-events: none; z-index: 3; }
   .fade-t { top: 0; background: linear-gradient(to bottom, rgba(246,248,254,.95), rgba(246,248,254,0)); }
@@ -241,6 +241,27 @@
   #xProg { display: none; height: 6px; border-radius: 3px; background: #e3e6f3; margin: 14px 4px 0; overflow: hidden; }
   #xBar { display: block; height: 100%; width: 0; background: #111; border-radius: 3px; transition: width .2s linear; }
   #xStatus { font-size: 13px; color: #555; min-height: 18px; margin-top: 12px; line-height: 1.4; }
+  #chips { position: absolute; left: 0; right: 0; top: 62px; height: 40px; display: flex; padding: 0 20px; z-index: 5; }
+  .chip { border: 0; background: #e8ebf6; color: #6c6e80; border-radius: 16px; height: 32px; padding: 0 14px;
+          margin-right: 8px; font-size: 13px; font-weight: 700; transition: background .25s, color .25s; }
+  .chip.on { background: #111; color: #fff; }
+
+  #viewer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 45; background: #0b0b10;
+            visibility: hidden; opacity: 0; transition: opacity .3s, visibility 0s .3s; }
+  #viewer.on { visibility: visible; opacity: 1; transition: opacity .3s; }
+  .vbar { position: absolute; left: 0; right: 0; top: 0; height: 60px; display: flex; align-items: center;
+          padding: 6px 8px 0; z-index: 3; color: #fff; }
+  .vbar button { width: 42px; height: 42px; padding: 10px; border: 0; background: none; color: #fff; flex: none; }
+  #vvTitle { flex: 1; min-width: 0; text-align: center; font-size: 15px; font-weight: 700; color: #fff;
+             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; }
+  .vstage { position: absolute; left: 0; right: 0; top: 60px; bottom: 48px; display: flex; align-items: center; justify-content: center; }
+  #vvImg { max-width: 100%; max-height: 100%; -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
+  #vvVid { width: 100%; max-height: 100%; background: #000; }
+  .vnav { position: absolute; top: 50%; margin-top: -22px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+          background: rgba(255,255,255,.16); color: #fff; padding: 10px; z-index: 3; }
+  .vnav.l { left: 8px; } .vnav.r { right: 8px; }
+  #vvHint { position: absolute; left: 16px; right: 16px; bottom: 12px; text-align: center; font-size: 12px; color: rgba(255,255,255,.6); }
+
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes drop { from { opacity: 0; transform: translate3d(0,-30px,0); } to { opacity: 1; transform: none; } }
   @keyframes bounce { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-9px,0); } }
@@ -281,6 +302,12 @@
     <div class="hdr">
       <div><h2 id="hdrTitle" style="display:inline-block">Explore</h2><span id="net">Offline</span></div>
       <div style="display:flex"><button id="addBtn" data-icon="plus" aria-label="Tambah lagu"></button><button id="menuBtn" data-icon="dots" aria-label="Menu"></button></div>
+    </div>
+    <div id="chips">
+      <button class="chip on" data-f="all">Semua</button>
+      <button class="chip" data-f="audio">Musik</button>
+      <button class="chip" data-f="video">Video</button>
+      <button class="chip" data-f="image">Foto</button>
     </div>
     <div id="list">
       <div id="rows"></div>
@@ -330,9 +357,9 @@
 
   <div id="menuWrap">
     <div id="menu">
-      <button id="mAdd">Tambah lagu dari file</button>
-      <button id="mRecv">Terima lagu dari perangkat lain</button>
-      <button id="mSend">Kirim lagu ke perangkat lain</button>
+      <button id="mAdd">Tambah file (musik/video/foto)</button>
+      <button id="mRecv">Terima file dari perangkat lain</button>
+      <button id="mSend">Kirim file ke perangkat lain</button>
       <button id="mSaveAll">Simpan semua offline</button>
       <button id="mShuffle">Acak: mati</button>
       <button id="mRepeat">Ulangi: mati</button>
@@ -345,13 +372,29 @@
     <button id="a2hsX" aria-label="Tutup">&times;</button>
   </div>
 
+  <div id="viewer">
+    <div class="vbar">
+      <button id="vvClose" data-icon="close" aria-label="Tutup"></button>
+      <div id="vvTitle"></div>
+      <button id="vvSave" data-icon="dl" aria-label="Simpan ke galeri"></button>
+      <button id="vvDel" data-icon="trash" aria-label="Hapus"></button>
+    </div>
+    <div class="vstage" id="vstage">
+      <img id="vvImg" alt="">
+      <video id="vvVid" controls playsinline></video>
+    </div>
+    <button class="vnav l" id="vvPrev" data-icon="left" aria-label="Sebelumnya"></button>
+    <button class="vnav r" id="vvNext" data-icon="right" aria-label="Berikutnya"></button>
+    <div id="vvHint"></div>
+  </div>
+
   <div id="xfer">
     <div class="xbox">
       <h3 id="xTitle"></h3>
       <div id="xText"></div>
       <div id="xCode"></div>
       <div id="xSendForm">
-        <button class="xbtn" id="xPick">Pilih file musik</button>
+        <button class="xbtn" id="xPick">Pilih file (musik/video/foto)</button>
         <div id="xPicked"></div>
         <input id="xCodeIn" type="tel" maxlength="4" placeholder="----" pattern="[0-9]*">
         <button class="xbtn dark" id="xGo">Kirim</button>
@@ -367,8 +410,8 @@
 </div>
 
 <div id="arrow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l-8-9h5V4h6v7h5z"/></svg></div>
-<input type="file" id="sendPick" accept="audio/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
-<input type="file" id="filePick" accept="audio/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+<input type="file" id="sendPick" accept="audio/*,video/*,image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+<input type="file" id="filePick" accept="audio/*,video/*,image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
 <audio id="audio" preload="metadata"></audio>
 
 <script>
@@ -397,6 +440,9 @@
     down: S('<polyline points="6 9 12 15 18 9"/>'),
     dots: F('<circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>'),
     dl: S('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
+    close: S('<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>'),
+    left: S('<polyline points="15 5 8 12 15 19"/>'),
+    right: S('<polyline points="9 5 16 12 9 19"/>'),
     plus: S('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
     trash: S('<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
     check: S('<polyline points="20 6 9 17 4 12"/>')
@@ -429,6 +475,7 @@
   var listIdx = [];          // index songs yang tampil di daftar
   var rows = [];
   var db = null, loadToken = 0, urlCache = {}, urlOrder = [];
+  var mfilter = "all", vvIdx = -1, vvUrl = null, viewTok = 0;
   var pos = 0, listH = 400, animId = null, drag = null, sheetOpen = false;
 
   function fmt(s) {
@@ -447,7 +494,23 @@
 
   /* ---------- cover ---------- */
   function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+  function kindOf(s) { return s.kind || "audio"; }
+  function fmtSize(n) {
+    if (n >= 1073741824) return (n / 1073741824).toFixed(2) + " GB";
+    if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
+    return Math.max(1, Math.round(n / 1024)) + " KB";
+  }
   function paintCover(el, song, i) {
+    var kd = kindOf(song);
+    el.style.textShadow = "none";
+    if (song.thumb) {
+      el.style.backgroundImage = 'url("' + song.thumb + '")';
+      el.style.backgroundSize = "cover"; el.style.backgroundPosition = "center";
+      el.style.color = "#fff";
+      el.style.textShadow = "0 1px 4px rgba(0,0,0,.6)";
+      el.textContent = kd === "video" ? "\u25B6\uFE0E" : "";
+      return;
+    }
     if (song.cover) {
       el.style.backgroundImage = 'url("' + encodeURI(song.cover) + '")';
       el.style.backgroundSize = "cover"; el.style.backgroundPosition = "center";
@@ -462,7 +525,7 @@
       el.style.backgroundImage = "linear-gradient(135deg,hsl(" + h + ",78%,66%),hsl(" + ((h + 55) % 360) + ",80%,48%))";
       el.style.color = "#fff";
     }
-    el.textContent = (song.title || "?").charAt(0).toUpperCase();
+    el.textContent = kd === "video" ? "\u25B6\uFE0E" : (kd === "image" ? "\u25A3" : (song.title || "?").charAt(0).toUpperCase());
   }
 
   /* ---------- daftar melengkung ---------- */
@@ -512,6 +575,7 @@
 
   function refreshLabels() {
     for (var k = 0; k < rows.length; k++) {
+      if (rows[k].kind !== "audio") continue;
       var playing = listIdx[k] === index && !audio.paused;
       var t = playing ? "Pause" : "Play";
       if (rows[k].btn.textContent !== t) rows[k].btn.textContent = t;
@@ -521,12 +585,13 @@
   function buildList() {
     listIdx = [];
     for (var i = 0; i < songs.length; i++) {
-      if (view === "all" || saved[songs[i].file]) listIdx.push(i);
+      var sg = songs[i];
+      if ((view === "all" || saved[sg.file]) && (mfilter === "all" || kindOf(sg) === mfilter)) listIdx.push(i);
     }
     rowsEl.innerHTML = "";
     rows = [];
     for (var k = 0; k < listIdx.length; k++) {
-      var s = songs[listIdx[k]];
+      var s = songs[listIdx[k]], kd = kindOf(s);
       var el = document.createElement("div"); el.className = "row"; el.setAttribute("data-k", k);
       var pill = document.createElement("div"); pill.className = "pill";
       var grp = document.createElement("div"); grp.className = "grp";
@@ -534,18 +599,20 @@
       paintCover(cover, s, listIdx[k]);
       var txt = document.createElement("div"); txt.className = "txt";
       var t = document.createElement("div"); t.className = "t"; t.textContent = s.title || "";
-      var a = document.createElement("div"); a.className = "a"; a.textContent = s.artist || "";
+      var a = document.createElement("div"); a.className = "a";
+      a.textContent = kd === "audio" ? (s.artist || "") : (fmtSize(s.size || 0) + " \u00b7 " + (kd === "video" ? "Video" : "Foto"));
       txt.appendChild(t); txt.appendChild(a);
       grp.appendChild(cover); grp.appendChild(txt);
-      var btn = document.createElement("button"); btn.className = "play"; btn.textContent = "Play";
+      var btn = document.createElement("button"); btn.className = "play"; btn.textContent = kd === "image" ? "View" : "Play";
       el.appendChild(pill); el.appendChild(grp); el.appendChild(btn);
       rowsEl.appendChild(el);
-      rows.push({ el: el, pill: pill, grp: grp, txt: txt, btn: btn, hid: false });
+      rows.push({ el: el, pill: pill, grp: grp, txt: txt, btn: btn, cover: cover, kind: kd, hid: false });
     }
     emptyEl.style.display = rows.length ? "none" : "block";
+    var lbl = mfilter === "audio" ? "lagu" : (mfilter === "video" ? "video" : (mfilter === "image" ? "foto" : "file"));
     emptyEl.textContent = view === "saved"
-      ? "Belum ada lagu offline. Putar sebuah lagu lalu ketuk \"Simpan offline\"."
-      : "Belum ada lagu. Ketuk tombol + untuk menambah lagu dari file.";
+      ? "Belum ada " + lbl + " tersimpan di perangkat."
+      : "Belum ada " + lbl + ". Ketuk tombol + atau terima dari perangkat lain.";
     measure();
     refreshLabels();
   }
@@ -622,7 +689,8 @@
     var k = parseInt(rowEl.getAttribute("data-k"), 10);
     if (k !== selK()) { animateTo(k); return; }
     var song = listIdx[k];
-    queue = listIdx.slice();
+    if (kindOf(songs[song]) !== "audio") { openViewer(song); return; }
+    queue = listIdx.filter(function (si) { return kindOf(songs[si]) === "audio"; });
     if (findUp(target, "play")) {
       if (index === song) { audio.paused ? play() : userPause(); }
       else load(song, true);
@@ -633,7 +701,7 @@
   }
 
   document.addEventListener("touchmove", function (e) {
-    if (e.target !== seek) e.preventDefault();
+    if (e.target !== seek && e.target !== vvVid) e.preventDefault();
   }, NP);
 
   /* ---------- layar ---------- */
@@ -789,8 +857,30 @@
   function idbPut(store, val) { return idbReq(store, "readwrite", function (os) { os.put(val); }); }
   function idbDel(store, id) { return idbReq(store, "readwrite", function (os) { os["delete"](id); }); }
 
+  var PART = 2097152; // 2 MB per bagian (hemat memori)
+
+  function detectKind(name, type) {
+    type = type || "";
+    if (/^video\//.test(type) || /\.(mp4|mov|m4v|3gp|webm|mkv|avi)$/i.test(name)) return "video";
+    if (/^image\//.test(type) || /\.(jpe?g|png|gif|heic|heif|webp|bmp)$/i.test(name)) return "image";
+    if (/^audio\//.test(type) || /\.(mp3|m4a|aac|wav|aif|aiff|caf|ogg|opus|flac)$/i.test(name)) return "audio";
+    return "";
+  }
+  function guessType(name, kind) {
+    var m = /\.([a-z0-9]+)$/i.exec(name || ""), e = m ? m[1].toLowerCase() : "";
+    var map = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", mp4: "video/mp4", m4v: "video/mp4",
+                mov: "video/quicktime", "3gp": "video/3gpp", webm: "video/webm", jpg: "image/jpeg", jpeg: "image/jpeg",
+                png: "image/png", gif: "image/gif", heic: "image/heic", heif: "image/heif", webp: "image/webp" };
+    return map[e] || (kind ? kind + "/*" : "application/octet-stream");
+  }
+  function extFor(type) {
+    var m = { "audio/mpeg": ".mp3", "video/mp4": ".mp4", "video/quicktime": ".mov", "image/jpeg": ".jpg", "image/png": ".png", "image/heic": ".heic" };
+    return m[type] || "";
+  }
+
   function localSong(m) {
-    return { title: m.title, artist: m.artist || "", file: "local:" + m.id, local: true, id: m.id, type: m.type };
+    return { title: m.title, artist: m.artist || "", file: "local:" + m.id, local: true, id: m.id, type: m.type,
+             kind: m.kind || "audio", parts: m.parts || 0, size: m.size || 0, name: m.name || "", thumb: m.thumb || "" };
   }
   function parseName(name) {
     var n = name.replace(/\.[^.]+$/, "").replace(/_/g, " ").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
@@ -806,14 +896,76 @@
       r.readAsArrayBuffer(f);
     });
   }
+
+  function putPart(id, i, blob) {
+    var key = id + "#" + i;
+    return idbPut("blobs", { id: key, blob: blob }).catch(function () {
+      return readFile(blob).then(function (buf) { return idbPut("blobs", { id: key, data: buf }); });
+    });
+  }
+  function readLocalBlob(song) {
+    var n = song.parts || 0;
+    if (!n) {
+      return idbGet("blobs", song.id).then(function (rec) {
+        if (!rec) throw new Error("hilang");
+        return new Blob([rec.data], { type: song.type || "audio/mpeg" });
+      });
+    }
+    var list = [], i = 0;
+    function step() {
+      if (i >= n) return Promise.resolve(new Blob(list, { type: song.type || "application/octet-stream" }));
+      return idbGet("blobs", song.id + "#" + i).then(function (rec) {
+        if (!rec) throw new Error("hilang");
+        list.push(rec.blob || rec.data); i++;
+        return step();
+      });
+    }
+    return step();
+  }
+  function deleteBlobs(song) {
+    var n = song.parts || 0;
+    if (!n) return idbDel("blobs", song.id);
+    var chain = Promise.resolve();
+    for (var i = 0; i < n; i++) (function (k) {
+      chain = chain.then(function () { return idbDel("blobs", song.id + "#" + k); });
+    })(i);
+    return chain;
+  }
+
+  function commitMeta(id, name, type, kind, parts, size) {
+    var pn = parseName(name);
+    var meta = { id: id, title: pn.title, artist: kind === "audio" ? pn.artist : "", type: type, kind: kind,
+                 parts: parts, size: size, name: name, added: Date.now(), thumb: "" };
+    return idbPut("meta", meta).then(function () {
+      var s = localSong(meta);
+      songs.push(s); saved[s.file] = true;
+      makeThumbLater(songs.length - 1);
+      return songs.length - 1;
+    });
+  }
+  function newId() { return "f" + Date.now() + "_" + Math.floor(Math.random() * 1000000); }
+
+  function storeFile(f) {
+    var kind = detectKind(f.name, f.type);
+    if (!kind || !f.size) return Promise.reject(new Error("tidak didukung"));
+    var id = newId(), parts = 0, off = 0, type = f.type || guessType(f.name, kind);
+    function step() {
+      if (off >= f.size) return Promise.resolve();
+      var end = Math.min(off + PART, f.size), pi = parts++;
+      var b = f.slice(off, end, type);
+      off = end;
+      return putPart(id, pi, b).then(step);
+    }
+    return step().then(function () { return commitMeta(id, f.name, type, kind, parts, f.size); });
+  }
+
   function localUrl(song) {
     if (urlCache[song.id]) return Promise.resolve(urlCache[song.id]);
-    return idbGet("blobs", song.id).then(function (rec) {
-      if (!rec) throw new Error("hilang");
-      var u = URL.createObjectURL(new Blob([rec.data], { type: song.type || "audio/mpeg" }));
+    return readLocalBlob(song).then(function (blob) {
+      var u = URL.createObjectURL(blob);
       urlCache[song.id] = u; urlOrder.push(song.id);
       var tries = urlOrder.length;
-      while (urlOrder.length > 4 && tries-- > 0) {
+      while (urlOrder.length > 3 && tries-- > 0) {
         var old = urlOrder.shift();
         if (urlCache[old] && audio.src === urlCache[old]) { urlOrder.push(old); }
         else if (urlCache[old]) { URL.revokeObjectURL(urlCache[old]); delete urlCache[old]; }
@@ -824,41 +976,75 @@
   function prefetchLocal(k) {
     if (!db || k < 0 || k >= listIdx.length) return;
     var s = songs[listIdx[k]];
-    if (s && s.local && !urlCache[s.id]) localUrl(s).catch(function () {});
+    if (s && s.local && kindOf(s) === "audio" && !urlCache[s.id]) localUrl(s).catch(function () {});
+  }
+
+  /* thumbnail foto / video */
+  function makeThumb(song, blob) {
+    return new Promise(function (res) {
+      var kind = kindOf(song), url = URL.createObjectURL(blob), done = false;
+      function fin(v) { if (done) return; done = true; try { URL.revokeObjectURL(url); } catch (e) {} res(v || ""); }
+      setTimeout(function () { fin(""); }, 8000);
+      function draw(src, w, h) {
+        try {
+          if (!w || !h) { fin(""); return; }
+          var S = 160, c = document.createElement("canvas");
+          c.width = S; c.height = S;
+          var ctx = c.getContext("2d"), r = Math.max(S / w, S / h), dw = w * r, dh = h * r;
+          ctx.drawImage(src, (S - dw) / 2, (S - dh) / 2, dw, dh);
+          fin(c.toDataURL("image/jpeg", 0.7));
+        } catch (e) { fin(""); }
+      }
+      if (kind === "image") {
+        var im = new Image();
+        im.onload = function () { draw(im, im.naturalWidth, im.naturalHeight); };
+        im.onerror = function () { fin(""); };
+        im.src = url;
+      } else if (kind === "video") {
+        var v = document.createElement("video");
+        v.muted = true; v.setAttribute("playsinline", ""); v.preload = "auto";
+        v.onloadeddata = function () {
+          try { v.currentTime = Math.min(1, (v.duration || 2) / 4); } catch (e) { draw(v, v.videoWidth, v.videoHeight); }
+        };
+        v.onseeked = function () { draw(v, v.videoWidth, v.videoHeight); };
+        v.onerror = function () { fin(""); };
+        v.src = url;
+      } else fin("");
+    });
+  }
+  function repaintSong(i) {
+    var k = listIdx.indexOf(i);
+    if (k >= 0 && rows[k]) paintCover(rows[k].cover, songs[i], i);
+  }
+  function makeThumbLater(i) {
+    var s = songs[i];
+    if (!s || kindOf(s) === "audio" || s.thumb) return;
+    readLocalBlob(s).then(function (b) { return makeThumb(s, b); }).then(function (th) {
+      if (!th) return;
+      s.thumb = th;
+      idbGet("meta", s.id).then(function (m) { if (m) { m.thumb = th; return idbPut("meta", m); } });
+      repaintSong(songs.indexOf(s));
+    }).catch(function () {});
   }
 
   function importFiles(files) {
     if (!files || !files.length) return;
     if (!db) { toast("Penyimpanan di browser ini tidak tersedia"); return; }
     var list = [];
-    for (var i = 0; i < files.length; i++) {
-      var f = files[i];
-      if (/^audio\//.test(f.type) || /\.(mp3|m4a|aac|wav|aif|aiff|caf|mp4)$/i.test(f.name)) list.push(f);
-    }
-    if (!list.length) { toast("Pilih file audio (mp3, m4a, wav)"); return; }
-    toast("Mengimpor " + list.length + " lagu...");
+    for (var i = 0; i < files.length; i++) if (detectKind(files[i].name, files[i].type)) list.push(files[i]);
+    if (!list.length) { toast("Pilih file musik, video, atau foto"); return; }
+    toast("Mengimpor " + list.length + " file...");
     var added = 0, firstIdx = -1, chain = Promise.resolve();
     list.forEach(function (f) {
       chain = chain.then(function () {
-        return readFile(f).then(function (buf) {
-          var id = "f" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
-          var p = parseName(f.name);
-          var meta = { id: id, title: p.title, artist: p.artist, type: f.type || "audio/mpeg", size: f.size, added: Date.now() };
-          return idbPut("blobs", { id: id, data: buf }).then(function () {
-            return idbPut("meta", meta);
-          }).then(function () {
-            var s = localSong(meta);
-            songs.push(s); saved[s.file] = true; added++;
-            if (firstIdx < 0) firstIdx = songs.length - 1;
-          });
-        }).catch(function () {
-          toast("Gagal mengimpor \"" + f.name + "\" (penyimpanan penuh?)");
-        });
+        return storeFile(f).then(function (idx) { added++; if (firstIdx < 0) firstIdx = idx; });
+      }).catch(function () {
+        toast("Gagal mengimpor \"" + f.name + "\" (penyimpanan penuh?)");
       });
     });
     chain.then(function () {
       if (!added) return;
-      toast(added + " lagu ditambahkan");
+      toast(added + " file ditambahkan");
       if (screen === "landing") go("explore"); else buildList();
       var k = listIdx.indexOf(firstIdx);
       if (k >= 0) { animateTo(k); prefetchLocal(k); }
@@ -869,20 +1055,21 @@
   function deleteLocal(i) {
     var s = songs[i];
     if (!s || !s.local) return;
-    if (!confirm("Hapus lagu ini dari perangkat?")) return;
-    idbDel("blobs", s.id).then(function () { return idbDel("meta", s.id); }).then(function () {
+    if (!confirm("Hapus dari perangkat?")) return;
+    deleteBlobs(s).then(function () { return idbDel("meta", s.id); }).then(function () {
       if (urlCache[s.id]) { URL.revokeObjectURL(urlCache[s.id]); delete urlCache[s.id]; }
       if (index === i) {
         audio.pause(); audio.removeAttribute("src"); audio.load();
         index = -1; closeSheet();
       } else if (index > i) index--;
+      if (vvIdx === i) closeViewer(); else if (vvIdx > i) vvIdx--;
       songs.splice(i, 1);
       queue = [];
       buildList();
       pos = clamp(pos, 0, Math.max(0, rows.length - 1)); updateRows();
       updateUI();
-      toast("Lagu dihapus");
-    }).catch(function () { toast("Gagal menghapus lagu"); });
+      toast("Dihapus");
+    }).catch(function () { toast("Gagal menghapus"); });
   }
 
   var filePick = $("filePick");
@@ -892,6 +1079,119 @@
   });
   $("addBtn").addEventListener("click", function () { filePick.click(); });
   $("mAdd").addEventListener("click", function () { closeMenu(); filePick.click(); });
+
+  /* ---------- filter ---------- */
+  var chips = document.querySelectorAll(".chip");
+  for (var ci = 0; ci < chips.length; ci++) {
+    (function (c) {
+      c.addEventListener("click", function () {
+        mfilter = c.getAttribute("data-f");
+        for (var j = 0; j < chips.length; j++) chips[j].classList.toggle("on", chips[j] === c);
+        buildList(); intro();
+      });
+    })(chips[ci]);
+  }
+
+  /* ---------- pemutar video & penampil foto ---------- */
+  var viewer = $("viewer"), vvImg = $("vvImg"), vvVid = $("vvVid"), vvTitle = $("vvTitle"), vvHint = $("vvHint");
+
+  function mediaIdx() {
+    var o = [];
+    for (var k = 0; k < listIdx.length; k++) if (kindOf(songs[listIdx[k]]) !== "audio") o.push(listIdx[k]);
+    return o;
+  }
+  function releaseView() {
+    try { vvVid.pause(); } catch (e) {}
+    vvVid.removeAttribute("src"); vvImg.removeAttribute("src");
+    try { vvVid.load(); } catch (e) {}
+    if (vvUrl) { try { URL.revokeObjectURL(vvUrl); } catch (e) {} vvUrl = null; }
+  }
+  function updateViewerNav() {
+    var list = mediaIdx(), p = list.indexOf(vvIdx);
+    $("vvPrev").style.display = p > 0 ? "block" : "none";
+    $("vvNext").style.display = (p >= 0 && p < list.length - 1) ? "block" : "none";
+  }
+  function openViewer(i) {
+    var s = songs[i];
+    if (!s) return;
+    var isV = kindOf(s) === "video";
+    if (isV && !audio.paused) userPause();
+    releaseView();
+    vvIdx = i;
+    viewer.classList.add("on");
+    vvTitle.textContent = s.title || "";
+    vvImg.style.display = isV ? "none" : "block";
+    vvVid.style.display = isV ? "block" : "none";
+    vvHint.textContent = isV
+      ? (isIOS ? "Simpan ke galeri di iOS 12 terbatas, lihat petunjuk saat ketuk tombol simpan" : "")
+      : (isIOS ? "Tahan lama pada foto, lalu pilih Simpan Gambar" : "");
+    var tok = ++viewTok;
+    readLocalBlob(s).then(function (b) {
+      if (tok !== viewTok) return;
+      vvUrl = URL.createObjectURL(b);
+      if (isV) { vvVid.src = vvUrl; vvVid.load(); } else { vvImg.src = vvUrl; }
+    }).catch(function () { vvHint.textContent = "File tidak ditemukan"; });
+    updateViewerNav();
+  }
+  function closeViewer() {
+    viewTok++;
+    releaseView();
+    viewer.classList.remove("on");
+    vvIdx = -1;
+  }
+  function stepViewer(dir) {
+    var list = mediaIdx(), p = list.indexOf(vvIdx), n = p + dir;
+    if (p < 0 || n < 0 || n >= list.length) return;
+    openViewer(list[n]);
+    var k = listIdx.indexOf(list[n]);
+    if (k >= 0) animateTo(k);
+  }
+  vvImg.addEventListener("error", function () { if (vvImg.getAttribute("src")) vvHint.textContent = "Format foto ini tidak didukung di perangkat ini"; });
+  vvVid.addEventListener("error", function () { if (vvVid.getAttribute("src")) vvHint.textContent = "Format video ini tidak didukung di perangkat ini"; });
+  $("vvClose").addEventListener("click", closeViewer);
+  $("vvPrev").addEventListener("click", function () { stepViewer(-1); });
+  $("vvNext").addEventListener("click", function () { stepViewer(1); });
+  $("vvDel").addEventListener("click", function () { if (vvIdx >= 0) deleteLocal(vvIdx); });
+  $("vvSave").addEventListener("click", function () { if (vvIdx >= 0) saveMedia(vvIdx); });
+
+  var swX = 0, swY = 0;
+  $("vstage").addEventListener("touchstart", function (e) { swX = e.touches[0].clientX; swY = e.touches[0].clientY; }, false);
+  $("vstage").addEventListener("touchend", function (e) {
+    if (vvVid.style.display === "block") return;
+    var t = e.changedTouches[0], dx = t.clientX - swX, dy = t.clientY - swY;
+    if (Math.abs(dx) > 60 && Math.abs(dy) < 70) stepViewer(dx < 0 ? 1 : -1);
+  }, false);
+
+  /* simpan ke galeri */
+  function saveMedia(i) {
+    var s = songs[i];
+    var w = null;
+    if (isIOS && kindOf(s) === "video") { try { w = window.open("", "_blank"); } catch (e) {} }
+    readLocalBlob(s).then(function (blob) {
+      var name = s.name || ((s.title || "file") + extFor(s.type));
+      var file = null;
+      try { file = new File([blob], name, { type: s.type }); } catch (e) {}
+      if (file && navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+        if (w) { try { w.close(); } catch (e) {} }
+        return navigator.share({ files: [file], title: s.title }).catch(function () {});
+      }
+      if (!isIOS) {
+        var a = document.createElement("a"), u = URL.createObjectURL(blob);
+        a.href = u; a.download = name; document.body.appendChild(a); a.click();
+        setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(u); }, 5000);
+        toast("Disimpan ke folder Unduhan / Galeri");
+        return;
+      }
+      if (kindOf(s) === "image") {
+        toast("Tahan lama pada foto, lalu pilih Simpan Gambar");
+      } else if (w) {
+        w.location.href = URL.createObjectURL(blob);
+        toast("Di halaman video, ketuk Bagikan lalu Simpan Video kalau ada");
+      } else {
+        toast("iOS 12 tidak mengizinkan simpan video dari web");
+      }
+    }).catch(function () { toast("Gagal menyimpan"); });
+  }
 
   /* ---------- kirim / terima lewat WebRTC (kode 4 angka) ---------- */
   var ICE_CFG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] };
@@ -977,25 +1277,14 @@
     return es;
   }
 
-  function addLocalSong(name, type, buf) {
-    var id = "f" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
-    var pn = parseName(name);
-    var meta = { id: id, title: pn.title, artist: pn.artist, type: type || "audio/mpeg", size: buf.byteLength, added: Date.now() };
-    return idbPut("blobs", { id: id, data: buf }).then(function () { return idbPut("meta", meta); }).then(function () {
-      var s = localSong(meta);
-      songs.push(s); saved[s.file] = true;
-      return songs.length - 1;
-    });
-  }
-
   /* --- penerima --- */
   function startReceive() {
     if (!window.RTCPeerConnection || !window.EventSource) { toast("Browser ini tidak mendukung WebRTC"); return; }
     if (!db) { toast("Penyimpanan di browser ini tidak tersedia"); return; }
     xCancel();
     var code = String(1000 + Math.floor(Math.random() * 9000));
-    var x = xfer = { role: "recv", me: rid(), topic: "instalipa-xfer-" + code, chain: Promise.resolve(), newIdx: [], got: 0, total: 0, recvd: 0 };
-    xShow("Terima lagu", "Masukkan kode ini di perangkat pengirim. Kedua perangkat harus online.", "recv");
+    var x = xfer = { role: "recv", me: rid(), topic: "instalipa-xfer-" + code, chain: Promise.resolve(), newIdx: [], got: 0, total: 0, recvd: 0, flushed: 0 };
+    xShow("Terima file", "Masukkan kode ini di perangkat pengirim. Kedua perangkat harus online. Biarkan layar tetap menyala.", "recv");
     xCode.textContent = code;
     xSet("Menunggu pengirim...");
     x.es = ntfySub(x.topic, function (o) { if (xfer === x && o.from !== x.me && o.t === "offer") onOffer(x, o); });
@@ -1023,7 +1312,29 @@
     dc.binaryType = "arraybuffer";
     x.dc = dc;
     var cur = null;
-    dc.onopen = function () { x.open = true; clearTimeout(x.t2); xSet("Terhubung. Menunggu daftar lagu..."); };
+
+    function enqueue(fn) {
+      x.chain = x.chain.then(function () { if (x.err) return; return fn(); }).catch(function () {
+        if (!x.err) {
+          x.err = true;
+          try { dc.send(JSON.stringify({ t: "err" })); } catch (er) {}
+          setTimeout(function () { xFail("Penyimpanan penuh atau gagal menyimpan."); }, 300);
+        }
+      });
+    }
+    function flush(c) {
+      if (!c || !c.buf.length) return;
+      var blob = new Blob(c.buf, { type: c.type }), pi = c.parts++, size = c.bufBytes;
+      c.buf = []; c.bufBytes = 0;
+      enqueue(function () {
+        return putPart(c.id, pi, blob).then(function () {
+          x.flushed += size;
+          try { dc.send(JSON.stringify({ t: "p", n: x.flushed })); } catch (er) {}
+        });
+      });
+    }
+
+    dc.onopen = function () { x.open = true; clearTimeout(x.t2); xSet("Terhubung. Menunggu daftar file..."); };
     dc.onclose = function () { if (xfer === x && !x.finished && !x.dead) xFail("Koneksi terputus."); };
     dc.onmessage = function (e) {
       if (typeof e.data === "string") {
@@ -1031,7 +1342,7 @@
         try { m = JSON.parse(e.data); } catch (er) { return; }
         if (m.t === "hello") {
           var names = (m.names || []).slice(0, 5).join("\n");
-          if (!confirm("Terima " + m.count + " lagu (" + (m.total / 1048576).toFixed(1) + " MB)?\n" + names)) {
+          if (!confirm("Terima " + m.count + " file (" + fmtSize(m.total || 0) + ")?\n" + names)) {
             try { dc.send(JSON.stringify({ t: "no" })); } catch (er) {}
             setTimeout(function () { if (xfer === x) xCancel("Penerimaan ditolak"); }, 300);
             return;
@@ -1040,39 +1351,44 @@
           dc.send(JSON.stringify({ t: "ok" }));
           xSet("Menerima...");
         } else if (m.t === "file") {
-          cur = { name: m.name, type: m.type, size: m.size, buf: new Uint8Array(m.size), off: 0 };
+          if (!m.size) { cur = null; return; }
+          var kd = m.kind || detectKind(m.name, m.type) || "audio";
+          cur = { id: newId(), name: m.name, type: m.type || guessType(m.name, kd), kind: kd, size: m.size, parts: 0, buf: [], bufBytes: 0 };
           xSet("Menerima: " + m.name);
         } else if (m.t === "end") {
-          var f = cur; cur = null;
-          if (f) {
-            x.chain = x.chain.then(function () {
-              return addLocalSong(f.name, f.type, f.buf.buffer).then(function (idx) { x.newIdx.push(idx); x.got++; });
-            }).catch(function () { x.failedStore = true; });
+          var c = cur; cur = null;
+          if (c) {
+            flush(c);
+            enqueue(function () {
+              return commitMeta(c.id, c.name, c.type, c.kind, c.parts, c.size).then(function (idx) { x.newIdx.push(idx); x.got++; });
+            });
           }
         } else if (m.t === "done") {
           x.chain.then(function () {
+            if (x.err) return;
             x.finished = true;
             try { dc.send(JSON.stringify({ t: "ack" })); } catch (er) {}
-            xProgress(1); xSet(x.got + " lagu diterima");
+            xProgress(1); xSet(x.got + " file diterima");
             setTimeout(function () {
-              var n = x.got, first = x.newIdx.length ? x.newIdx[0] : -1, bad = x.failedStore;
+              var n = x.got, first = x.newIdx.length ? x.newIdx[0] : -1;
               if (xfer === x) xCancel();
-              afterReceive(n, first, bad);
+              afterReceive(n, first, false);
             }, 900);
           });
         }
       } else if (cur) {
-        var u = new Uint8Array(e.data);
-        if (cur.off + u.length <= cur.buf.length) { cur.buf.set(u, cur.off); cur.off += u.length; }
-        x.recvd += u.length;
+        cur.buf.push(e.data);
+        cur.bufBytes += e.data.byteLength;
+        x.recvd += e.data.byteLength;
         xProgress(x.recvd / x.total);
+        if (cur.bufBytes >= PART) flush(cur);
       }
     };
   }
 
   function afterReceive(n, first, bad) {
-    if (!n) { toast("Tidak ada lagu yang tersimpan"); return; }
-    toast(n + " lagu diterima" + (bad ? " (sebagian gagal disimpan)" : ""));
+    if (!n) { toast("Tidak ada file yang tersimpan"); return; }
+    toast(n + " file diterima" + (bad ? " (sebagian gagal disimpan)" : ""));
     if (screen === "landing") go("explore"); else buildList();
     var k = listIdx.indexOf(first);
     if (k >= 0) { animateTo(k); prefetchLocal(k); }
@@ -1085,7 +1401,7 @@
     xCancel();
     sendFiles = [];
     xfer = { role: "send", me: rid() };
-    xShow("Kirim lagu", "Pilih file musik, lalu masukkan kode 4 angka dari perangkat penerima.", "send");
+    xShow("Kirim file", "Pilih file (kualitas asli, tidak dikompres), lalu masukkan kode 4 angka dari perangkat penerima.", "send");
     xPicked.textContent = "Belum ada file dipilih";
     xCodeIn.value = "";
   }
@@ -1094,9 +1410,9 @@
     var fl = sendPick.files, tot = 0;
     sendFiles = [];
     for (var i = 0; i < fl.length; i++) {
-      if (/^audio\//.test(fl[i].type) || /\.(mp3|m4a|aac|wav|aif|aiff|caf|mp4)$/i.test(fl[i].name)) { sendFiles.push(fl[i]); tot += fl[i].size; }
+      if (detectKind(fl[i].name, fl[i].type) && fl[i].size) { sendFiles.push(fl[i]); tot += fl[i].size; }
     }
-    xPicked.textContent = sendFiles.length ? (sendFiles.length + " file (" + (tot / 1048576).toFixed(1) + " MB)") : "Tidak ada file audio";
+    xPicked.textContent = sendFiles.length ? (sendFiles.length + " file (" + fmtSize(tot) + ")") : "Tidak ada file yang didukung";
     setTimeout(function () { sendPick.value = ""; }, 0);
   });
   $("xGo").addEventListener("click", startSend);
@@ -1114,7 +1430,7 @@
     var x = xfer;
     if (!x || x.role !== "send" || x.pc) return;
     var code = xCodeIn.value.replace(/\D/g, "");
-    if (!sendFiles.length) { xSet("Pilih file musik dulu."); return; }
+    if (!sendFiles.length) { xSet("Pilih file dulu."); return; }
     if (code.length !== 4) { xSet("Masukkan kode 4 angka."); return; }
     x.topic = "instalipa-xfer-" + code;
     xSend.style.display = "none";
@@ -1143,7 +1459,7 @@
       x.open = true; clearTimeout(x.t2);
       var total = 0, names = [];
       for (var i = 0; i < sendFiles.length; i++) { total += sendFiles[i].size; names.push(sendFiles[i].name); }
-      x.total = total || 1; x.sent = 0;
+      x.total = total || 1; x.sent = 0; x.acked = 0;
       xSet("Terhubung. Menunggu persetujuan penerima...");
       dc.send(JSON.stringify({ t: "hello", count: sendFiles.length, total: total, names: names }));
     };
@@ -1153,7 +1469,9 @@
       var m;
       try { m = JSON.parse(e.data); } catch (er) { return; }
       if (m.t === "ok") sendAll(x);
+      else if (m.t === "p") x.acked = m.n;
       else if (m.t === "no") xFail("Penerima menolak.");
+      else if (m.t === "err") xFail("Penyimpanan penerima penuh.");
       else if (m.t === "ack") { x.finished = true; xProgress(1); xSet("Terkirim \u2713"); xClose.textContent = "Selesai"; }
     };
   }
@@ -1161,24 +1479,29 @@
   function sendAll(x) {
     var dc = x.dc, i = 0;
     xSet("Mengirim...");
+    function alive() { return xfer === x && !x.dead; }
     function nextFile() {
-      if (!xfer || xfer !== x || x.dead) return;
+      if (!alive()) return;
       if (i >= sendFiles.length) {
         try { dc.send(JSON.stringify({ t: "done" })); } catch (e) { xFail("Koneksi terputus."); return; }
         xSet("Menunggu penerima menyimpan...");
         return;
       }
-      var f = sendFiles[i];
-      try { dc.send(JSON.stringify({ t: "file", name: f.name, type: f.type, size: f.size })); } catch (e) { xFail("Koneksi terputus."); return; }
+      var f = sendFiles[i], kd = detectKind(f.name, f.type) || "audio";
+      try { dc.send(JSON.stringify({ t: "file", name: f.name, type: f.type || guessType(f.name, kd), size: f.size, kind: kd })); }
+      catch (e) { xFail("Koneksi terputus."); return; }
       chunks(f, 0, function () {
         try { dc.send(JSON.stringify({ t: "end" })); } catch (e) { xFail("Koneksi terputus."); return; }
         i++; nextFile();
       });
     }
     function chunks(f, off, done) {
-      if (!xfer || xfer !== x || x.dead) return;
+      if (!alive()) return;
       if (off >= f.size) { done(); return; }
-      if (dc.bufferedAmount > 1048576) { setTimeout(function () { chunks(f, off, done); }, 40); return; }
+      if (dc.bufferedAmount > 1048576 || x.sent - x.acked > 8388608) {
+        setTimeout(function () { chunks(f, off, done); }, 40);
+        return;
+      }
       var end = Math.min(off + CH, f.size);
       readSlice(f, off, end).then(function (buf) {
         dc.send(buf);
@@ -1283,15 +1606,20 @@
     if (autoplay && !pending) play();
   }
   function play() {
-    if (index < 0 && songs.length) { queue = songs.map(function (s, i) { return i; }); load(0, true); return; }
+    if (index < 0 && songs.length) { queue = allAudio(); if (queue.length) load(queue[0], true); return; }
     var p = audio.play();
     if (p && p.catch) p.catch(function () { toast("Ketuk putar untuk memulai"); });
   }
   function pause() { audio.pause(); }
   function userPause() { userPaused = true; audio.pause(); }
 
+  function allAudio() {
+    var o = [];
+    for (var i = 0; i < songs.length; i++) if (kindOf(songs[i]) === "audio") o.push(i);
+    return o;
+  }
   function getQueue() {
-    if (queue.indexOf(index) < 0) queue = songs.map(function (s, i) { return i; });
+    if (queue.indexOf(index) < 0) queue = allAudio();
     return queue;
   }
   function next(auto) {
@@ -1439,7 +1767,7 @@
         var last2 = JSON.parse(localStorage.getItem("musik-last") || "null");
         if (last2 && index < 0 && /^local:/.test(last2.file)) {
           for (var q = 0; q < songs.length; q++) {
-            if (songs[q].file === last2.file) {
+            if (songs[q].file === last2.file && kindOf(songs[q]) === "audio") {
               load(q, false);
               resumeTime = last2.t || 0; restoredAt = resumeTime;
               updateUI();
