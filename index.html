@@ -246,6 +246,7 @@
           margin-right: 8px; font-size: 13px; font-weight: 700; transition: background .25s, color .25s; }
   .chip.on { background: #111; color: #fff; }
 
+  .card.nomask { -webkit-mask-image: none; }
   #viewer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 45; background: #0b0b10;
             visibility: hidden; opacity: 0; transition: opacity .3s, visibility 0s .3s; }
   #viewer.on { visibility: visible; opacity: 1; transition: opacity .3s; }
@@ -381,7 +382,7 @@
     </div>
     <div class="vstage" id="vstage">
       <img id="vvImg" alt="">
-      <video id="vvVid" controls playsinline></video>
+      <video id="vvVid" controls preload="metadata"></video>
     </div>
     <button class="vnav l" id="vvPrev" data-icon="left" aria-label="Sebelumnya"></button>
     <button class="vnav r" id="vvNext" data-icon="right" aria-label="Berikutnya"></button>
@@ -1119,6 +1120,7 @@
     releaseView();
     vvIdx = i;
     viewer.classList.add("on");
+    document.querySelector(".card").classList.add("nomask");
     vvTitle.textContent = s.title || "";
     vvImg.style.display = isV ? "none" : "block";
     vvVid.style.display = isV ? "block" : "none";
@@ -1137,6 +1139,7 @@
     viewTok++;
     releaseView();
     viewer.classList.remove("on");
+    document.querySelector(".card").classList.remove("nomask");
     vvIdx = -1;
   }
   function stepViewer(dir) {
@@ -1147,6 +1150,12 @@
     if (k >= 0) animateTo(k);
   }
   vvImg.addEventListener("error", function () { if (vvImg.getAttribute("src")) vvHint.textContent = "Format foto ini tidak didukung di perangkat ini"; });
+  vvVid.addEventListener("loadedmetadata", function () {
+    var w = vvVid.videoWidth, h = vvVid.videoHeight;
+    if (w && h && Math.max(w, h) > 2000) {
+      vvHint.textContent = "Video " + w + "x" + h + " terlalu berat untuk iPhone 6, bisa patah-patah. Gunakan 1080p H.264.";
+    }
+  });
   vvVid.addEventListener("error", function () { if (vvVid.getAttribute("src")) vvHint.textContent = "Format video ini tidak didukung di perangkat ini"; });
   $("vvClose").addEventListener("click", closeViewer);
   $("vvPrev").addEventListener("click", function () { stepViewer(-1); });
