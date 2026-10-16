@@ -857,7 +857,7 @@
   function idbPut(store, val) { return idbReq(store, "readwrite", function (os) { os.put(val); }); }
   function idbDel(store, id) { return idbReq(store, "readwrite", function (os) { os["delete"](id); }); }
 
-  var PART = 2097152; // 2 MB per bagian (hemat memori)
+  var PART = 4194304; // 4 MB per bagian
 
   function detectKind(name, type) {
     type = type || "";
@@ -1196,6 +1196,7 @@
   /* ---------- kirim / terima lewat WebRTC (kode 4 angka) ---------- */
   var ICE_CFG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }] };
   var CH = 16384;
+  var WINDOW = 16777216; // maks data belum dikonfirmasi penerima (16 MB)
   var FAIL_MSG = "Gagal terhubung. Coba pakai hotspot dari salah satu perangkat, atau pakai cara GitHub.";
   var xfer = null, sendFiles = [];
   var xferEl = $("xfer"), xText = $("xText"), xCode = $("xCode"), xSend = $("xSendForm"), xPicked = $("xPicked");
@@ -1204,7 +1205,22 @@
 
   function rid() { return Math.random().toString(36).slice(2, 10); }
   function xSet(m) { xStatus.textContent = m; }
-  function xProgress(v) { xProg.style.display = "block"; xBar.style.width = Math.round(clamp(v, 0, 1) * 100) + "%"; }
+  var xLastUi = 0;
+  function xProgress(v) {
+    var now = Date.now();
+    if (v < 1 && now - xLastUi < 150) return;
+    xLastUi = now;
+    xProg.style.display = "block";
+    xBar.style.width = Math.round(clamp(v, 0, 1) * 100) + "%";
+  }
+  function xSpeed(x, bytes, verb) {
+    var now = Date.now();
+    if (!x.lastSp) { x.lastSp = now; x.lastB = bytes; return; }
+    if (now - x.lastSp < 700) return;
+    var sp = (bytes - x.lastB) / ((now - x.lastSp) / 1000);
+    x.lastSp = now; x.lastB = bytes;
+    xSet(verb + "... " + (sp / 1048576).toFixed(1) + " MB/s");
+  }
   function xShow(title, text, mode) {
     xTitle.textContent = title; xText.textContent = text;
     xCode.style.display = mode === "recv" ? "block" : "none";
@@ -1381,6 +1397,7 @@
         cur.bufBytes += e.data.byteLength;
         x.recvd += e.data.byteLength;
         xProgress(x.recvd / x.total);
+        xSpeed(x, x.recvd, "Menerima");
         if (cur.bufBytes >= PART) flush(cur);
       }
     };
@@ -1477,7 +1494,8 @@
   }
 
   function sendAll(x) {
-    var dc = x.dc, i = 0;
+    var dc = x.dc, i = 0, BIG = 262144;
+    try { dc.bufferedAmountLowThreshold = 524288; } catch (e) {}
     xSet("Mengirim...");
     function alive() { return xfer === x && !x.dead; }
     function nextFile() {
@@ -1495,19 +1513,31 @@
         i++; nextFile();
       });
     }
+    function waitDrain(cb) {
+      var fired = false;
+      function go() { if (fired) return; fired = true; dc.onbufferedamountlow = null; cb(); }
+      dc.onbufferedamountlow = go;
+      setTimeout(go, 50);
+    }
     function chunks(f, off, done) {
       if (!alive()) return;
       if (off >= f.size) { done(); return; }
-      if (dc.bufferedAmount > 1048576 || x.sent - x.acked > 8388608) {
-        setTimeout(function () { chunks(f, off, done); }, 40);
-        return;
-      }
-      var end = Math.min(off + CH, f.size);
+      if (x.sent - x.acked > WINDOW) { setTimeout(function () { chunks(f, off, done); }, 30); return; }
+      var end = Math.min(off + BIG, f.size);
       readSlice(f, off, end).then(function (buf) {
-        dc.send(buf);
-        x.sent += buf.byteLength;
-        xProgress(x.sent / x.total);
-        chunks(f, end, done);
+        var p0 = 0;
+        (function pump() {
+          if (!alive()) return;
+          while (p0 < buf.byteLength) {
+            if (dc.bufferedAmount > 1048576) { waitDrain(pump); return; }
+            var e2 = Math.min(p0 + CH, buf.byteLength);
+            try { dc.send(buf.slice(p0, e2)); } catch (er) { xFail("Koneksi terputus."); return; }
+            x.sent += e2 - p0; p0 = e2;
+          }
+          xProgress(x.sent / x.total);
+          xSpeed(x, x.sent, "Mengirim");
+          chunks(f, end, done);
+        })();
       }).catch(function () { xFail("Gagal mengirim file."); });
     }
     nextFile();
