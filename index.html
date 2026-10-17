@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-title" content="Musik">
 <meta name="theme-color" content="#e6e8f6">
 <link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Musik</title>
@@ -758,15 +759,39 @@
   var a2hsOff = false;
   try { a2hsOff = localStorage.getItem("musik-a2hs") === "1"; } catch (e) {}
   var a2hsEl = $("a2hs"), arrowEl = $("arrow");
-  function updateA2hs() {
-    var show = isIOS && !standalone && !a2hsOff && screen === "landing";
-    a2hsEl.classList.toggle("on", show);
-    arrowEl.classList.toggle("on", show);
-    $("a2hsBtn").style.display = "none";
-    $("a2hsTxt").innerHTML = "Ketuk <b>Bagikan</b> di bawah, lalu <b>Tambahkan ke Layar Utama</b>";
+  var deferredPrompt = null;
+  function isStandalone() {
+    return window.navigator.standalone === true ||
+      !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
   }
+  function updateA2hs() {
+    var ios = isIOS && !isStandalone();
+    var andr = !!deferredPrompt && !isStandalone();
+    var show = (ios || andr) && !a2hsOff && screen === "landing";
+    a2hsEl.classList.toggle("on", show);
+    arrowEl.classList.toggle("on", show && ios);
+    $("a2hsBtn").style.display = andr ? "block" : "none";
+    $("a2hsTxt").innerHTML = andr
+      ? "Pasang sebagai aplikasi di layar utama"
+      : "Ketuk <b>Bagikan</b> di bawah, lalu <b>Tambahkan ke Layar Utama</b>";
+  }
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    updateA2hs();
+  });
+  window.addEventListener("appinstalled", function () {
+    deferredPrompt = null; a2hsOff = true;
+    updateA2hs();
+    toast("Aplikasi terpasang");
+  });
   $("a2hsBtn").addEventListener("click", function () {
-    location.href = location.pathname + "?app=1";
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    var dp = deferredPrompt;
+    if (dp.userChoice && dp.userChoice.then) {
+      dp.userChoice.then(function () { deferredPrompt = null; updateA2hs(); });
+    }
   });
   $("a2hsX").addEventListener("click", function () {
     a2hsOff = true;
@@ -1151,10 +1176,17 @@
   }
   vvImg.addEventListener("error", function () { if (vvImg.getAttribute("src")) vvHint.textContent = "Format foto ini tidak didukung di perangkat ini"; });
   vvVid.addEventListener("loadedmetadata", function () {
-    var w = vvVid.videoWidth, h = vvVid.videoHeight;
-    if (w && h && Math.max(w, h) > 2000) {
-      vvHint.textContent = "Video " + w + "x" + h + " terlalu berat untuk iPhone 6, bisa patah-patah. Gunakan 1080p H.264.";
-    }
+    var w = vvVid.videoWidth, h = vvVid.videoHeight, d = vvVid.duration;
+    var sg = vvIdx >= 0 ? songs[vvIdx] : null;
+    if (!w || !h) return;
+    var info = w + "x" + h;
+    var mbps = 0;
+    if (sg && sg.size && d && isFinite(d)) { mbps = (sg.size * 8) / d / 1000000; info += " \u00b7 " + mbps.toFixed(0) + " Mbps"; }
+    if (d && isFinite(d)) info += " \u00b7 " + Math.round(d) + " dtk";
+    var warn = "";
+    if (Math.max(w, h) > 2000) warn = " \u2014 4K terlalu berat untuk iPhone 6";
+    else if (mbps > 35) warn = " \u2014 bitrate tinggi, bisa patah-patah";
+    vvHint.textContent = info + warn;
   });
   vvVid.addEventListener("error", function () { if (vvVid.getAttribute("src")) vvHint.textContent = "Format video ini tidak didukung di perangkat ini"; });
   $("vvClose").addEventListener("click", closeViewer);
