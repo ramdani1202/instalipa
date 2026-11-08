@@ -1,6 +1,6 @@
 {
-  "name": "Musik",
-  "short_name": "Musik",
+  "name": "instalipa",
+  "short_name": "instalipa",
   "description": "Pemutar musik, video, dan foto offline",
   "start_url": "./",
   "scope": "./",
