@@ -1,7 +1,7 @@
-// Nama cache tetap. Tidak perlu dinaikkan: halaman & songs.json selalu diambil dari
+// Nama cache. Dinaikkan ke v2 supaya MP3 lama yang pernah tersimpan ikut terhapus. Selanjutnya tidak perlu dinaikkan: halaman selalu diambil dari
 // jaringan dulu (network-first), jadi update otomatis tanpa ganti versi.
-var CACHE = "musik-v1";
-var SHELL = ["./", "index.html", "songs.json"];
+var CACHE = "musik-v2";
+var SHELL = ["./", "index.html"];
 
 function key(url) {
   var u = new URL(url);
@@ -32,26 +32,6 @@ self.addEventListener("activate", function (e) {
   );
 });
 
-function rangeResponse(req, res) {
-  return res.arrayBuffer().then(function (buf) {
-    var m = /bytes=(\d*)-(\d*)/.exec(req.headers.get("range"));
-    var total = buf.byteLength;
-    var start = m[1] ? parseInt(m[1], 10) : 0;
-    var end = m[2] ? parseInt(m[2], 10) : total - 1;
-    if (end >= total) end = total - 1;
-    var slice = buf.slice(start, end + 1);
-    return new Response(slice, {
-      status: 206,
-      statusText: "Partial Content",
-      headers: {
-        "Content-Type": res.headers.get("Content-Type") || "audio/mpeg",
-        "Content-Range": "bytes " + start + "-" + (start + slice.byteLength - 1) + "/" + total,
-        "Content-Length": String(slice.byteLength)
-      }
-    });
-  });
-}
-
 self.addEventListener("fetch", function (e) {
   var req = e.request;
   if (req.method !== "GET") return;
@@ -59,24 +39,8 @@ self.addEventListener("fetch", function (e) {
   if (url.origin !== self.location.origin) return;
 
   var k = key(req.url);
-  var isAudio = /\.(mp3|m4a|aac|wav|ogg)$/i.test(url.pathname);
-
-  if (isAudio) {
-    // Cache-first. Kalau tidak ada di cache, ambil dari jaringan seperti biasa.
-    e.respondWith(
-      caches.open(CACHE).then(function (c) {
-        return c.match(k).then(function (res) {
-          if (!res) return fetch(req);
-          if (req.headers.get("range")) return rangeResponse(req, res.clone());
-          return res;
-        });
-      })
-    );
-    return;
-  }
-
-  // Halaman & songs.json: coba jaringan dulu, kalau offline pakai cache.
-  var isShell = /\.(html|json)$/i.test(url.pathname) || /\/$/.test(url.pathname);
+  // Halaman: coba jaringan dulu, kalau offline pakai cache.
+  var isShell = /\.html$/i.test(url.pathname) || /\/$/.test(url.pathname);
   if (isShell) {
     e.respondWith(
       fetch(req).then(function (res) {
